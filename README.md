@@ -30,7 +30,7 @@ Manually run Grabit to generate the lock file `grabit.lock` with the definition 
 used during the asset downloading step:
 
 ```sh
-$ grait add https://example.com/
+$ grabit add https://example.com/
 $ cat grabit.lock
 [[Resource]]
 Urls = ['https://example.com/']
