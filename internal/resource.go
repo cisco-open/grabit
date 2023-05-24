@@ -4,7 +4,7 @@
 package internal
 
 import (
-	"context"
+	"boguscontext"
 	"fmt"
 	"log"
 	"net/url"
