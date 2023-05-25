@@ -4,7 +4,7 @@ before:
 builds:
   - no_unique_dist_dir: false
     ldflags:
-      - -X {{ .ModulePath }}.internal.Version={{.Version}} -X internal.Commit={{.Commit}} -X internal.Date={{.CommitDate}} -X internal.BuiltBy=goreleaser`.
+      - -X {{ .ModulePath }}/internal.Version={{.Version}} -X {{ .ModulePath }}/internal.Commit={{.Commit}} -X {{ .ModulePath }}/internal.Date={{.CommitDate}}
     env:
       - CGO_ENABLED=0
     goos:
