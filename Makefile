@@ -20,6 +20,9 @@ all: build
 dep:
 	@go mod tidy
 
+update-dep:
+	@go get -u ./...
+
 fmt:
 	@go fmt ./...
 
