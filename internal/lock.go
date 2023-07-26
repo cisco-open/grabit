@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	toml "github.com/pelletier/go-toml/v2"
 )
@@ -71,11 +72,29 @@ func (l *Lock) DeleteResource(path string) {
 	l.conf.Resource = newStatements
 }
 
+const NoFileMode = os.FileMode(0)
+
+// strToFileMode converts a string to a os.FileMode.
+func strToFileMode(perm string) (os.FileMode, error) {
+	if perm == "" {
+		return NoFileMode, nil
+	}
+	parsed, err := strconv.ParseUint(perm, 8, 32)
+	if err != nil {
+		return NoFileMode, err
+	}
+	return os.FileMode(parsed), nil
+}
+
 // Download gets all the resources in this lock file and moves them to
 // the destination directory.
-func (l *Lock) Download(dir string, tags []string, notags []string) error {
+func (l *Lock) Download(dir string, tags []string, notags []string, perm string) error {
 	if stat, err := os.Stat(dir); err != nil || !stat.IsDir() {
 		return fmt.Errorf("'%s' is not a directory", dir)
+	}
+	mode, err := strToFileMode(perm)
+	if err != nil {
+		return fmt.Errorf("'%s' is not a valid permission definition", perm)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -133,7 +152,7 @@ func (l *Lock) Download(dir string, tags []string, notags []string) error {
 	for _, r := range filteredResources {
 		resource := r
 		go func() {
-			err := resource.Download(dir, ctx)
+			err := resource.Download(dir, mode, ctx)
 			errorCh <- err
 		}()
 	}

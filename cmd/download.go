@@ -13,6 +13,7 @@ func init() {
 	downloadCmd.Flags().String("dir", ".", "Target directory where to store the files")
 	downloadCmd.Flags().StringArray("tag", []string{}, "Only download the resources with the given tag")
 	downloadCmd.Flags().StringArray("notag", []string{}, "Only download the resources without the given tag")
+	downloadCmd.Flags().String("perm", "", "Optional permissions for the downloaded files (e.g. '644')")
 }
 
 var downloadCmd = &cobra.Command{
@@ -33,6 +34,8 @@ func runFetch(cmd *cobra.Command, args []string) {
 	FatalIfNotNil(err)
 	notags, err := cmd.Flags().GetStringArray("notag")
 	FatalIfNotNil(err)
-	err = lock.Download(dir, tags, notags)
+	perm, err := cmd.Flags().GetString("perm")
+	FatalIfNotNil(err)
+	err = lock.Download(dir, tags, notags, perm)
 	FatalIfNotNil(err)
 }
