@@ -72,6 +72,29 @@ func TestDuplicateResource(t *testing.T) {
 	assert.Contains(t, err.Error(), "already present")
 }
 
+func TestStrToFileMode(t *testing.T) {
+	cases := []struct {
+		Input    string
+		Err      bool
+		Expected string
+	}{
+		{"", false, NoFileMode.String()},
+		{"bogus", true, ""},
+		{"666", false, "-rw-rw-rw-"},
+		{"741", false, "-rwxr----x"},
+	}
+	for _, c := range cases {
+		t.Run(c.Input, func(t *testing.T) {
+			res, err := strToFileMode(c.Input)
+			if c.Err {
+				assert.NotNil(t, err)
+			} else {
+				assert.Equal(t, res.String(), c.Expected)
+			}
+		})
+	}
+}
+
 func TestDownload(t *testing.T) {
 	httpContent := []byte(`abcdef`)
 	handler := func(w http.ResponseWriter, r *http.Request) {
@@ -86,10 +109,12 @@ func TestDownload(t *testing.T) {
 		[[Resource]]
 		Urls = ['http://localhost:%d/test.html']
 		Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='`, port))
+	perm := "467"
+	strPerm := "-r--rw-rwx"
 	lock, err := NewLock(path, false)
 	assert.Nil(t, err)
 	dir := tmpDir(t)
-	err = lock.Download(dir, []string{}, []string{})
+	err = lock.Download(dir, []string{}, []string{}, perm)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,4 +125,9 @@ func TestDownload(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, httpContent, content)
+	stats, err := os.Stat(resFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, stats.Mode().Perm().String(), strPerm)
 }

@@ -78,7 +78,7 @@ func GetUrltoTempFile(u string, ctx context.Context) (string, error) {
 	return getUrl(u, fileName, ctx)
 }
 
-func (l *Resource) Download(dir string, ctx context.Context) error {
+func (l *Resource) Download(dir string, mode os.FileMode, ctx context.Context) error {
 	ok := false
 	algo, err := getAlgoFromIntegrity(l.Integrity)
 	if err != nil {
@@ -102,9 +102,13 @@ func (l *Resource) Download(dir string, ctx context.Context) error {
 		} else {
 			localName = path.Base(u)
 		}
-		err = os.Rename(lpath, filepath.Join(dir, localName))
+		resPath := filepath.Join(dir, localName)
+		err = os.Rename(lpath, resPath)
 		if err != nil {
 			return err
+		}
+		if mode != NoFileMode {
+			os.Chmod(resPath, mode.Perm())
 		}
 		ok = true
 	}
