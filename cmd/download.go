@@ -26,7 +26,7 @@ var downloadCmd = &cobra.Command{
 func runFetch(cmd *cobra.Command, args []string) {
 	lockFile, err := cmd.Flags().GetString("lock-file")
 	FatalIfNotNil(err)
-	lock, err := internal.NewLock(lockFile, true)
+	lock, err := internal.NewLock(lockFile, false)
 	FatalIfNotNil(err)
 	dir, err := cmd.Flags().GetString("dir")
 	FatalIfNotNil(err)
