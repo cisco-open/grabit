@@ -51,6 +51,7 @@ func getUrl(u string, fileName string, ctx context.Context) (string, error) {
 	}
 	err = requests.
 		URL(u).
+		Header("Accept", "*/*").
 		ToFile(fileName).
 		Fetch(ctx)
 	if err != nil {
