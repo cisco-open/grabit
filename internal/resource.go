@@ -8,11 +8,12 @@ import (
 	"crypto/sha256"
 	b64 "encoding/base64"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/carlmjohnson/requests"
 )
@@ -49,6 +50,7 @@ func getUrl(u string, fileName string, ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid url '%s': %s", u, err)
 	}
+	log.Debug().Str("URL", u).Msg("Downloading")
 	err = requests.
 		URL(u).
 		ToFile(fileName).
@@ -56,6 +58,7 @@ func getUrl(u string, fileName string, ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to download '%s': %s", u, err)
 	}
+	log.Debug().Str("URL", u).Msg("Downloaded")
 	return fileName, nil
 }
 
@@ -72,7 +75,7 @@ func GetUrlToDir(u string, targetDir string, ctx context.Context) (string, error
 func GetUrltoTempFile(u string, ctx context.Context) (string, error) {
 	file, err := os.CreateTemp("", "prefix")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 	fileName := file.Name()
 	return getUrl(u, fileName, ctx)
