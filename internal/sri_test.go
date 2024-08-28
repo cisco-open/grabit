@@ -35,11 +35,11 @@ func TestGetAlgoFromIntegrity(t *testing.T) {
 
 	for _, data := range tests {
 		algo, err := getAlgoFromIntegrity(data.sriString)
-		assert.Equal(t, err == nil, data.valid)
+		assert.Equal(t, data.valid, err == nil)
 		if err != nil {
 			assert.Contains(t, err.Error(), data.errorContains)
 		} else {
-			assert.Equal(t, algo, data.resString)
+			assert.Equal(t, data.resString, algo)
 		}
 	}
 }
@@ -48,7 +48,7 @@ func TestGetIntegrityFromFile(t *testing.T) {
 	path := tmpFile(t, "abcdef")
 	sri, err := getIntegrityFromFile(path, "sha256")
 	assert.Nil(t, err)
-	assert.Equal(t, sri, "sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE=")
+	assert.Equal(t, "sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE=", sri)
 }
 
 func TestCheckIntegrityFromFile(t *testing.T) {

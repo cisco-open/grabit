@@ -4,8 +4,10 @@
 package internal
 
 import (
+	"bufio"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -15,12 +17,31 @@ func getIntegrityFromFile(path string, algo string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	f, err := os.ReadFile(path)
+	hasher := hash.hash()
+	f, err := os.Open(path)
+	defer f.Close()
 	if err != nil {
 		return "", fmt.Errorf("cannot open file '%s'", path)
 	}
-	hasher := hash.hash()
-	hasher.Write(f)
+	reader := bufio.NewReader(f)
+	// each block size is 10MB
+	const chunkSize = 10 * 1024 * 1024
+	buf := make([]byte, chunkSize)
+	for {
+		n, err := reader.Read(buf)
+		buf = buf[:n]
+
+		if n == 0 {
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return "", err
+			}
+			break
+		}
+		hasher.Write(buf)
+	}
 	h := hasher.Sum(nil)
 	return fmt.Sprintf("%s-%s", algo, base64.StdEncoding.EncodeToString(h)), nil
 }
