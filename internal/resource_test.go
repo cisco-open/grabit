@@ -41,11 +41,11 @@ func TestNewResourceFromUrl(t *testing.T) {
 
 	for _, data := range tests {
 		resource, err := NewResourceFromUrl(data.urls, algo, []string{}, "")
-		assert.Equal(t, err == nil, data.valid)
+		assert.Equal(t, data.valid, err == nil)
 		if err != nil {
 			assert.Contains(t, err.Error(), data.errorContains)
 		} else {
-			assert.Equal(t, *resource, data.res)
+			assert.Equal(t, data.res, *resource)
 		}
 	}
 }
