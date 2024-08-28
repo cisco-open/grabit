@@ -6,7 +6,7 @@ package internal
 import (
 	"context"
 	"crypto/sha256"
-	b64 "encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"os"
@@ -68,7 +68,7 @@ func GetUrlToDir(u string, targetDir string, ctx context.Context) (string, error
 	// create temporary name in the target directory.
 	h := sha256.New()
 	h.Write([]byte(u))
-	fileName := filepath.Join(targetDir, fmt.Sprintf(".%s", b64.StdEncoding.EncodeToString(h.Sum(nil))))
+	fileName := filepath.Join(targetDir, fmt.Sprintf(".%s", hex.EncodeToString(h.Sum(nil))))
 	return getUrl(u, fileName, ctx)
 }
 
