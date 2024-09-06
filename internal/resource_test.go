@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/cisco-open/grabit/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +19,7 @@ func TestNewResourceFromUrl(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	port, server := httpHandler(handler)
+	port, server := test.HttpHandler(handler)
 	defer server.Close()
 	algo := "sha256"
 	tests := []struct {

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/cisco-open/grabit/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,7 +20,7 @@ func TestNewLockInvalid(t *testing.T) {
 }
 
 func TestNewLockValid(t *testing.T) {
-	path := tmpFile(t, `
+	path := test.TmpFile(t, `
 	[[Resource]]
 	Urls = ['http://localhost:123456/test.html']
 	Integrity = 'sha256-asdasdasd'
@@ -34,7 +35,7 @@ func TestNewLockValid(t *testing.T) {
 }
 
 func TestLockManipulations(t *testing.T) {
-	path := tmpFile(t, `
+	path := test.TmpFile(t, `
 	[[Resource]]
 	Urls = ['http://localhost:123456/test.html']
 	Integrity = 'sha256-asdasdasd'
@@ -47,7 +48,7 @@ func TestLockManipulations(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	port, server := httpHandler(handler)
+	port, server := test.HttpHandler(handler)
 	defer server.Close()
 	resource := fmt.Sprintf("http://localhost:%d/test2.html", port)
 	err = lock.AddResource([]string{resource}, "sha512", []string{}, "")
@@ -61,7 +62,7 @@ func TestLockManipulations(t *testing.T) {
 
 func TestDuplicateResource(t *testing.T) {
 	url := "http://localhost:123456/test.html"
-	path := tmpFile(t, fmt.Sprintf(`
+	path := test.TmpFile(t, fmt.Sprintf(`
 		[[Resource]]
 		Urls = ['%s']
 		Integrity = 'sha256-asdasdasd'`, url))
@@ -103,9 +104,9 @@ func TestDownload(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	port, server := httpHandler(handler)
+	port, server := test.HttpHandler(handler)
 	defer server.Close()
-	path := tmpFile(t, fmt.Sprintf(`
+	path := test.TmpFile(t, fmt.Sprintf(`
 		[[Resource]]
 		Urls = ['http://localhost:%d/test.html']
 		Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='`, port))
@@ -113,7 +114,7 @@ func TestDownload(t *testing.T) {
 	strPerm := "-r--rw-rwx"
 	lock, err := NewLock(path, false)
 	assert.Nil(t, err)
-	dir := tmpDir(t)
+	dir := test.TmpDir(t)
 	err = lock.Download(dir, []string{}, []string{}, perm)
 	if err != nil {
 		t.Fatal(err)

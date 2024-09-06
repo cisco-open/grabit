@@ -88,11 +88,13 @@ func (l *Resource) Download(dir string, mode os.FileMode, ctx context.Context) e
 	if err != nil {
 		return err
 	}
+	var downloadError error = nil
 	for _, u := range l.Urls {
 		// Download file in the target directory so that the call to
 		// os.Rename is atomic.
 		lpath, err := GetUrlToDir(u, dir, ctx)
 		if err != nil {
+			downloadError = err
 			break
 		}
 		err = checkIntegrityFromFile(lpath, algo, l.Integrity, u)
@@ -117,6 +119,13 @@ func (l *Resource) Download(dir string, mode os.FileMode, ctx context.Context) e
 		ok = true
 	}
 	if !ok {
+		if err == nil {
+			if downloadError != nil {
+				return downloadError
+			} else {
+				panic("no error but no file downloaded")
+			}
+		}
 		return err
 	}
 	return nil

@@ -21,7 +21,8 @@ func main() {
 	signal.Notify(stopChan, os.Interrupt)
 	go listenForInterrupt(stopChan)
 
-	cmd.Execute()
+	rootCmd := cmd.NewRootCmd()
+	cmd.Execute(rootCmd)
 }
 
 func listenForInterrupt(stopScan chan os.Signal) {

@@ -30,7 +30,8 @@ build: dep
 	@go build -o grabit
 
 test: dep
-	@go test -race -coverprofile=coverage.out -v ./...
+	@go test -race -v -coverpkg=./... -coverprofile=coverage.out ./...
+	@go tool cover -func coverage.out | tail -n 1
 
 check: dep
 	@golangci-lint run --sort-results ./...

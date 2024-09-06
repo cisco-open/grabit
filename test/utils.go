@@ -1,10 +1,9 @@
 // Copyright (c) 2023 Cisco Systems, Inc. and its affiliates
 // All rights reserved.
 
-package internal
+package test
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -13,7 +12,7 @@ import (
 	"testing"
 )
 
-func tmpFile(t *testing.T, content string) string {
+func TmpFile(t *testing.T, content string) string {
 	f, err := os.CreateTemp(t.TempDir(), "test")
 	if err != nil {
 		t.Fatal(err)
@@ -27,7 +26,7 @@ func tmpFile(t *testing.T, content string) string {
 	return name
 }
 
-func tmpDir(t *testing.T) string {
+func TmpDir(t *testing.T) string {
 	dir, err := os.MkdirTemp(t.TempDir(), "test")
 	if err != nil {
 		log.Fatal(err)
@@ -36,9 +35,8 @@ func tmpDir(t *testing.T) string {
 	return dir
 }
 
-func httpHandler(handler http.HandlerFunc) (int, *httptest.Server) {
-	testPort := 12345 // TODO: dynamically find free port
-	l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", testPort))
+func HttpHandler(handler http.HandlerFunc) (int, *httptest.Server) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -46,5 +44,5 @@ func httpHandler(handler http.HandlerFunc) (int, *httptest.Server) {
 	s.Listener.Close()
 	s.Listener = l
 	s.Start()
-	return testPort, s
+	return l.Addr().(*net.TCPAddr).Port, s
 }
