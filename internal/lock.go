@@ -150,15 +150,14 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string)
 	}
 	errorCh := make(chan error, total)
 
-	/*CAPSTONE vvvvv*/
 	//This progress goroutine will run concurrently with the download goroutines.
 	//When each download goroutine is finished, it places a 1 in the progressCh channel.
-	//The progress goroutine keeps a tally of how many downloads have finished by adding whatever is in the channel to the total.
+	//The progress goroutine keeps a tally of how many downloads have finished by adding whatever is in the channel to the total (a 1 for each completed download).
 	//Example:
-	//7 of 11 Complete   [■■■■■■■#___]
+	//[■■■■■■■#___]   7 of 11 Complete
 	//		■   completed download
 	//		#   current, active download
-	//		_	download yet to be started.
+	//		_	download yet to be started
 	progressCh := make(chan int)
 	go func() {
 		downloadTotal := 0
@@ -179,14 +178,13 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string)
 			}
 
 			bar += "]"
-			fmt.Printf("\r%v of %v Complete   "+bar, downloadTotal, len(filteredResources)) //"\r" allows the progress bar to clear and update on one line.
+			fmt.Printf("\r"+bar+"   %v of %v Complete", downloadTotal, len(filteredResources)) //"\r" allows the progress bar to clear and update on one line.
 			if downloadTotal == len(filteredResources) {
 				fmt.Println()
 				break
 			}
 		}
 	}()
-	/*CAPSTONE ^^^^^*/
 
 	for _, r := range filteredResources {
 		resource := r
@@ -195,9 +193,7 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string)
 
 			errorCh <- err
 
-			/*CAPSTONE vvvvv*/
 			progressCh <- 1
-			/*CAPSTONE ^^^^^*/
 		}()
 	}
 	done := 0
