@@ -115,7 +115,7 @@ func TestDownload(t *testing.T) {
 	lock, err := NewLock(path, false)
 	assert.Nil(t, err)
 	dir := test.TmpDir(t)
-	err = lock.Download(dir, []string{}, []string{}, perm)
+	err = lock.Download(dir, []string{}, []string{}, perm, false)
 	if err != nil {
 		t.Fatal(err)
 	}
