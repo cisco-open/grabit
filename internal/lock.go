@@ -89,7 +89,7 @@ func strToFileMode(perm string) (os.FileMode, error) {
 
 // Download gets all the resources in this lock file and moves them to
 // the destination directory.
-func (l *Lock) Download(dir string, tags []string, notags []string, perm string) error {
+func (l *Lock) Download(dir string, tags []string, notags []string, perm string, status bool) error {
 	if stat, err := os.Stat(dir); err != nil || !stat.IsDir() {
 		return fmt.Errorf("'%s' is not a directory", dir)
 	}
@@ -150,11 +150,28 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string)
 		return fmt.Errorf("nothing to download")
 	}
 	errorCh := make(chan error, total)
-	for _, r := range filteredResources {
+
+	var statusLine *StatusLine
+	if status {
+		statusLine = NewStatusLine(ctx, &filteredResources)
+		err := statusLine.InitResourcesSizes()
+		if err == nil {
+			statusLine.Start(true)
+		} else {
+			statusLine = nil // Do not update or display SL.
+		}
+	}
+
+	for i, r := range filteredResources {
 		resource := r
 		go func() {
+
 			err := resource.Download(dir, mode, ctx)
 			errorCh <- err
+
+			if statusLine != nil {
+				statusLine.Increment(i)
+			}
 		}()
 	}
 	done := 0
