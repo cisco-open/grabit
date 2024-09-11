@@ -165,6 +165,14 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 			for {
 				downloadTotal += <-progressCh
 
+				//Bar is yellow while downloading, green when complete.
+				var color string
+				if downloadTotal < len(filteredResources) {
+					color = "yellow"
+				} else {
+					color = "green"
+				}
+
 				bar := "["
 				for i := 0; i < downloadTotal; i += 1 {
 					bar += "■"
@@ -179,7 +187,11 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 				}
 
 				bar += "]"
-				fmt.Printf("\r"+bar+"    %v of %v Complete", downloadTotal, len(filteredResources)) //"\r" allows the progress bar to clear and update on one line.
+
+				//"\r" allows the bar to clear and update on one line.
+				line := "\r" + bar + "   " + strconv.Itoa(downloadTotal) + " of " + strconv.Itoa(len(filteredResources)) + " Complete"
+				fmt.Print(Color_Text(line, color))
+
 				if downloadTotal == len(filteredResources) {
 					fmt.Println()
 					break
