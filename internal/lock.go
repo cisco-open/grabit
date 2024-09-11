@@ -164,6 +164,9 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 		spinChars := [6]string{"-", "\\", "|", "/", "-", "\\"}
 		spinI := 0 //Current char in spinChars.
 
+		dotChars := [4]string{"   ", ".  ", ".. ", "..."}
+		dotI := 0
+
 		//The progress bar goroutine blocks and waits for items to enter the progressCh channel.
 		//So the spinner would only update when a download completes (when a download completes, it places a 1 in progressCh)
 		//We want the spinner to continuously update, so we continuously feed in 0's to the progressCh channel (every 50 milliseconds).
@@ -194,6 +197,15 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 					spinner = "✔"
 				}
 
+				//Ellipsis dots should tick slower than spinner.
+				//Ellipsis will tick every interval spinner ticks.
+				interval := 15
+				dots := dotChars[dotI/interval]
+				dotI += 1
+				if dotI == interval*len(dotChars)-1 {
+					dotI = 0
+				}
+
 				//Bar is yellow while downloading, green when complete.
 				var color string
 				if downloadTotal < len(filteredResources) {
@@ -218,7 +230,14 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 				bar += "]"
 
 				//"\r" allows the bar to clear and update on one line.
-				line := "\r" + spinner + bar + "   " + strconv.Itoa(downloadTotal) + " of " + strconv.Itoa(len(filteredResources)) + " Complete"
+				var grab string
+				if downloadTotal < len(filteredResources) {
+					grab = "Grabbing it" + dots
+				} else {
+					grab = "Grabbed!      "
+				}
+				line := "\r" + grab + "\t\t" + spinner + bar + "\t\t" + strconv.Itoa(downloadTotal) + " of " + strconv.Itoa(len(filteredResources)) + " Complete"
+				fmt.Print("\b\b\b\b")
 				fmt.Print(Color_Text(line, color))
 
 				if downloadTotal == len(filteredResources) {
