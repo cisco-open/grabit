@@ -8,33 +8,47 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	rootCmd.AddCommand(addCmd)
+func addAdd(cmd *cobra.Command) {
+	addCmd := &cobra.Command{
+		Use:   "add",
+		Short: "Add new resource",
+		Args:  cobra.MinimumNArgs(1),
+		RunE:  runAdd,
+	}
 	addCmd.Flags().String("algo", internal.RecommendedAlgo, "Integrity algorithm")
 	addCmd.Flags().String("filename", "", "Target file name to use when downloading the resource")
 	addCmd.Flags().StringArray("tag", []string{}, "Resource tags")
+	cmd.AddCommand(addCmd)
 }
 
-var addCmd = &cobra.Command{
-	Use:   "add",
-	Short: "Add new resource",
-	Args:  cobra.MinimumNArgs(1),
-	Run:   runAdd,
-}
-
-func runAdd(cmd *cobra.Command, args []string) {
+func runAdd(cmd *cobra.Command, args []string) error {
 	lockFile, err := cmd.Flags().GetString("lock-file")
-	FatalIfNotNil(err)
+	if err != nil {
+		return err
+	}
 	lock, err := internal.NewLock(lockFile, true)
-	FatalIfNotNil(err)
+	if err != nil {
+		return err
+	}
 	algo, err := cmd.Flags().GetString("algo")
-	FatalIfNotNil(err)
+	if err != nil {
+		return err
+	}
 	tags, err := cmd.Flags().GetStringArray("tag")
-	FatalIfNotNil(err)
+	if err != nil {
+		return err
+	}
 	filename, err := cmd.Flags().GetString("filename")
-	FatalIfNotNil(err)
+	if err != nil {
+		return err
+	}
 	err = lock.AddResource(args, algo, tags, filename)
-	FatalIfNotNil(err)
+	if err != nil {
+		return err
+	}
 	err = lock.Save()
-	FatalIfNotNil(err)
+	if err != nil {
+		return err
+	}
+	return nil
 }

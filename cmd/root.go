@@ -13,9 +13,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
-	Use:   "grabit",
-	Short: "Grabit downloads files from remote locations and verifies their integrity",
+func NewRootCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "grabit",
+		Short:        "Grabit downloads files from remote locations and verifies their integrity",
+		SilenceUsage: true,
+	}
+	cmd.PersistentFlags().StringP("lock-file", "f", filepath.Join(getPwd(), GRAB_LOCK), "lockfile path (default: $PWD/grabit.lock")
+	cmd.PersistentFlags().StringP("log-level", "l", "info", "log level (trace, debug, info, warn, error, fatal)")
+	addDelete(cmd)
+	addDownload(cmd)
+	addAdd(cmd)
+	addVersion(cmd)
+	return cmd
 }
 
 func getPwd() string {
@@ -28,16 +38,8 @@ func getPwd() string {
 
 var GRAB_LOCK = "grabit.lock"
 
-func init() {
-	cobra.OnInitialize(initLog)
-	rootCmd.PersistentFlags().StringP("lock-file", "f", filepath.Join(getPwd(), GRAB_LOCK), "lockfile path (default: $PWD/grabit.lock")
-	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "log level (trace, debug, info, warn, error, fatal)")
-}
-
-func initLog() {
+func initLog(ll string) {
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	ll, err := rootCmd.Flags().GetString("log-level")
-	FatalIfNotNil(err)
 	switch strings.ToLower(ll) {
 	case "trace":
 		zerolog.SetGlobalLevel(zerolog.TraceLevel)
@@ -56,18 +58,17 @@ func initLog() {
 	}
 }
 
-func Execute() {
+func Execute(rootCmd *cobra.Command) {
+	ll, err := rootCmd.PersistentFlags().GetString("log-level")
+	if err != nil {
+		log.Fatal().Msg(err.Error())
+	}
+	initLog(ll)
 	if err := rootCmd.Execute(); err != nil {
 		if strings.Contains(err.Error(), "unknown flag") {
 			// exit code 126: Command invoked cannot execute
 			os.Exit(126)
 		}
-		log.Fatal().Msg(err.Error())
-	}
-}
-
-func FatalIfNotNil(err error) {
-	if err != nil {
 		log.Fatal().Msg(err.Error())
 	}
 }

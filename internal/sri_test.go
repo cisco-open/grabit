@@ -6,6 +6,7 @@ package internal
 import (
 	"testing"
 
+	"github.com/cisco-open/grabit/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,7 +46,7 @@ func TestGetAlgoFromIntegrity(t *testing.T) {
 }
 
 func TestGetIntegrityFromFile(t *testing.T) {
-	path := tmpFile(t, "abcdef")
+	path := test.TmpFile(t, "abcdef")
 	sri, err := getIntegrityFromFile(path, "sha256")
 	assert.Nil(t, err)
 	assert.Equal(t, "sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE=", sri)
@@ -58,7 +59,7 @@ func TestCheckIntegrityFromFile(t *testing.T) {
 }
 
 func TestCheckIntegrityFromFileInvalid(t *testing.T) {
-	path := tmpFile(t, "abcdef")
+	path := test.TmpFile(t, "abcdef")
 	err := checkIntegrityFromFile(path, "sha256", "invalid", "")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "integrity mismatch")

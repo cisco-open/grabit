@@ -19,10 +19,10 @@ func getIntegrityFromFile(path string, algo string) (string, error) {
 	}
 	hasher := hash.hash()
 	f, err := os.Open(path)
-	defer f.Close()
 	if err != nil {
 		return "", fmt.Errorf("cannot open file '%s'", path)
 	}
+	defer f.Close()
 	reader := bufio.NewReader(f)
 	// each block size is 10MB
 	const chunkSize = 10 * 1024 * 1024

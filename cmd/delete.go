@@ -8,25 +8,31 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	rootCmd.AddCommand(delCmd)
+func addDelete(cmd *cobra.Command) {
+	var delCmd = &cobra.Command{
+		Use:   "delete",
+		Short: "Delete existing resources",
+		Args:  cobra.MinimumNArgs(1),
+		RunE:  runDel,
+	}
+	cmd.AddCommand(delCmd)
 }
 
-var delCmd = &cobra.Command{
-	Use:   "delete",
-	Short: "Delete existing resources",
-	Args:  cobra.MinimumNArgs(1),
-	Run:   runDel,
-}
-
-func runDel(cmd *cobra.Command, args []string) {
+func runDel(cmd *cobra.Command, args []string) error {
 	lockFile, err := cmd.Flags().GetString("lock-file")
-	FatalIfNotNil(err)
+	if err != nil {
+		return err
+	}
 	lock, err := internal.NewLock(lockFile, false)
-	FatalIfNotNil(err)
+	if err != nil {
+		return err
+	}
 	for _, r := range args {
 		lock.DeleteResource(r)
 	}
 	err = lock.Save()
-	FatalIfNotNil(err)
+	if err != nil {
+		return err
+	}
+	return nil
 }
