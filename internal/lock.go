@@ -152,7 +152,9 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 	}
 	errorCh := make(chan error, total)
 
-	progressCh := make(chan int)
+	byteCh := make(chan int64)
+	resourceSizes := make([]int64, 0, len(filteredResources))
+
 	if bar {
 		startTime := time.Now()
 
@@ -169,39 +171,45 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 			for {
 				select {
 				case <-ticker.C:
-					progressCh <- 0
+					byteCh <- 0
 				}
 			}
 		}()
 
-		//DOWNLOAD SIZE GOROUTINE.
 		var totalBytes int64 = 0
-		go func() {
-			//Loop through resources, fetching their metadata and totalling up their sizes in bytes.
-			for _, r := range filteredResources {
-				resource := r
-				httpClient := &http.Client{Timeout: 10 * time.Second}
-				resp, err := httpClient.Head(resource.Urls[0])
-				if err != nil {
-					//errorCh <- err	We don't want a failed fetch to crash the whole program -- it is not crucial to know the total download size.
-					//Instead, the print goroutine will read this -1 and notify the user by printing an error message while everything continues as usual.
-					totalBytes = -1
-					break
-				}
-				totalBytes += resp.ContentLength
+		//Loop through resources, fetching their metadata and totalling up their sizes in bytes.
+		//This is not in a goroutine because a resource may finish downloading before its size has been calculated.
+		//For now, we'll pre-calculate the sizes.
+		fmt.Print(Color_Text("\rFetching file sizes...", "yellow"))
+		for _, r := range filteredResources {
+			resource := r
+			httpClient := &http.Client{Timeout: 10 * time.Second}
+			resp, err := httpClient.Head(resource.Urls[0])
+			if err != nil {
+				//errorCh <- err	We don't want a failed fetch to crash the whole program -- it is not crucial to know the total download size.
+				//Instead, the print goroutine will read this -1 and notify the user by printing an error message while everything continues as usual.
+				totalBytes = -1
+				break
 			}
-		}()
+			totalBytes += resp.ContentLength
+			resourceSizes = append(resourceSizes, resp.ContentLength)
+		}
 
 		//PRINT GOROUTINE.
 		go func() {
-			downloadTotal := 0
+			resourcesDownloaded := 0
+			var bytesDownloaded int64 = 0
 
 			for {
-				downloadTotal += <-progressCh //progressCh receives 0's (spinner ticks) or 1's (completed downloads)
+				b := <-byteCh
+				if b != 0 { //if a resource just finished downloading.
+					resourcesDownloaded += 1
+					bytesDownloaded += b
+				}
 
 				//Spinner loops through chars in spinChars to give the impression it is rotating.
 				var spinner string
-				if downloadTotal < len(filteredResources) {
+				if resourcesDownloaded < len(filteredResources) {
 					spinner = spinChars[spinI]
 					spinI += 1
 					if spinI == len(spinChars) {
@@ -211,9 +219,9 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 					spinner = "✔"
 				}
 
-				//Bar is yellow while downloading, green when complete.
+				//Line is yellow while downloading, green when complete.
 				var color string
-				if downloadTotal < len(filteredResources) {
+				if resourcesDownloaded < len(filteredResources) {
 					color = "yellow"
 				} else {
 					color = "green"
@@ -221,43 +229,44 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 
 				//Build progress bar string.
 				barStr := "║"
-				for i := 0; i < downloadTotal; i += 1 {
+				for i := 0; i < resourcesDownloaded; i += 1 {
 					barStr += "█"
 				}
 
-				if downloadTotal < len(filteredResources) {
+				if resourcesDownloaded < len(filteredResources) {
 					barStr += "░"
 				}
 
-				for i := downloadTotal + 1; i < len(filteredResources); i += 1 {
+				for i := resourcesDownloaded + 1; i < len(filteredResources); i += 1 {
 					barStr += "_"
 				}
 				barStr += "║"
 
-				byteStr := "<>/"
+				//<bytes downloaded> / <total bytes>
+				byteStr := strconv.Itoa(int(bytesDownloaded)) + "B / "
 				if totalBytes != -1 {
 					byteStr += strconv.Itoa(int(totalBytes)) + "B"
 				} else {
 					byteStr += "<ERROR FETCHING BYTE TOTALS>"
 				}
-				completeStr := strconv.Itoa(downloadTotal) + "/" + strconv.Itoa(len(filteredResources)) + " Complete"
+				completeStr := strconv.Itoa(resourcesDownloaded) + "/" + strconv.Itoa(len(filteredResources)) + " Complete"
 
 				elapsedStr := strconv.Itoa(int(time.Now().Sub(startTime).Round(time.Second).Seconds())) + "s Elapsed"
 
 				//Build and print line.
-				//"\r" allows the bar to clear and update on one line.
 				pad := "          "
-				line := "\r" + spinner + barStr + pad + completeStr + pad + byteStr + pad + elapsedStr
+				line := "\r" + spinner + barStr + pad + completeStr + pad + byteStr + pad + elapsedStr //"\r" lets us clear the line.
+
 				fmt.Print(Color_Text(line, color))
 
-				if downloadTotal == len(filteredResources) {
+				if resourcesDownloaded == len(filteredResources) {
 					fmt.Println()
 					break
 				}
 			}
 		}()
 	}
-	for _, r := range filteredResources {
+	for i, r := range filteredResources {
 		resource := r
 		go func() {
 
@@ -265,7 +274,8 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 
 			errorCh <- err
 
-			progressCh <- 1
+			byteCh <- resourceSizes[i]
+
 		}()
 	}
 	done := 0
