@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"testing"
 
@@ -8,18 +10,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func getSha256Integrity(content string) string {
+	hasher := sha256.New()
+	hasher.Write([]byte(content))
+	return fmt.Sprintf("sha256-%s", base64.StdEncoding.EncodeToString(hasher.Sum(nil)))
+}
+
 func TestRunDownload(t *testing.T) {
 	content := `abcdef`
+	contentIntegrity := getSha256Integrity(content)
 	port := test.TestHttpHandler(content, t)
 	testfilepath := test.TmpFile(t, fmt.Sprintf(`
 	[[Resource]]
 	Urls = ['http://localhost:%d/test.html']
-	Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='
+	Integrity = '%s'
 
 	[[Resource]]
 	Urls = ['http://localhost:%d/test3.html']
-	Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='
-`, port, port))
+	Integrity = '%s'
+`, port, contentIntegrity, port, contentIntegrity))
 	outputDir := test.TmpDir(t)
 	cmd := NewRootCmd()
 	cmd.SetArgs([]string{"-f", testfilepath, "download", "--dir", outputDir})
@@ -32,18 +41,19 @@ func TestRunDownload(t *testing.T) {
 
 func TestRunDownloadWithTags(t *testing.T) {
 	content := `abcdef`
+	contentIntegrity := getSha256Integrity(content)
 	port := test.TestHttpHandler(content, t)
 	testfilepath := test.TmpFile(t, fmt.Sprintf(`
 	[[Resource]]
 	Urls = ['http://localhost:%d/test.html']
-	Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='
+	Integrity = '%s'
 	Tags = ['tag']
 
 	[[Resource]]
 	Urls = ['http://localhost:%d/test2.html']
-	Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='
+	Integrity = '%s'
 	Tags = ['tag1', 'tag2']
-`, port, port))
+`, port, contentIntegrity, port, contentIntegrity))
 	outputDir := test.TmpDir(t)
 	cmd := NewRootCmd()
 	cmd.SetArgs([]string{"-f", testfilepath, "download", "--tag", "tag", "--dir", outputDir})
@@ -56,18 +66,19 @@ func TestRunDownloadWithTags(t *testing.T) {
 
 func TestRunDownloadWithoutTags(t *testing.T) {
 	content := `abcdef`
+	contentIntegrity := getSha256Integrity(content)
 	port := test.TestHttpHandler(content, t)
 	testfilepath := test.TmpFile(t, fmt.Sprintf(`
 	[[Resource]]
 	Urls = ['http://localhost:%d/test.html']
-	Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='
+	Integrity = '%s'
 	Tags = ['tag']
 
 	[[Resource]]
 	Urls = ['http://localhost:%d/test2.html']
-	Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='
+	Integrity = '%s'
 	Tags = ['tag1', 'tag2']
-`, port, port))
+`, port, contentIntegrity, port, contentIntegrity))
 	outputDir := test.TmpDir(t)
 	cmd := NewRootCmd()
 	cmd.SetArgs([]string{"-f", testfilepath, "download", "--notag", "tag", "--dir", outputDir})
@@ -82,11 +93,11 @@ func TestRunDownloadMultipleErrors(t *testing.T) {
 	testfilepath := test.TmpFile(t, `
 	[[Resource]]
 	Urls = ['http://localhost:1234/test.html']
-	Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='
+	Integrity = 'sha256-unused'
 
 	[[Resource]]
 	Urls = ['http://cannot-be-resolved.no:12/test.html']
-	Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='
+	Integrity = 'sha256-unused'
 `)
 	cmd := NewRootCmd()
 	cmd.SetArgs([]string{"-f", testfilepath, "download"})
@@ -95,4 +106,20 @@ func TestRunDownloadMultipleErrors(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to download")
 	assert.Contains(t, err.Error(), "connection refused")
 	assert.Contains(t, err.Error(), "no such host")
+}
+
+func TestRunDownloadFailsIntegrityTest(t *testing.T) {
+	content := `abcdef`
+	port := test.TestHttpHandler(content, t)
+	testfilepath := test.TmpFile(t, fmt.Sprintf(`
+	[[Resource]]
+	Urls = ['http://localhost:%d/test.html']
+	Integrity = 'sha256-bogus'
+`, port))
+	outputDir := test.TmpDir(t)
+	cmd := NewRootCmd()
+	cmd.SetArgs([]string{"-f", testfilepath, "download", "--dir", outputDir})
+	err := cmd.Execute()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "integrity mismatch")
 }
