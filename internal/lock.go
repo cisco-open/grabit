@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	toml "github.com/pelletier/go-toml/v2"
 )
@@ -160,10 +161,38 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 	//		_	download yet to be started
 	progressCh := make(chan int)
 	if bar {
+		spinChars := [6]string{"-", "\\", "|", "/", "-", "\\"}
+		spinI := 0 //Current char in spinChars.
+
+		//The progress bar goroutine blocks and waits for items to enter the progressCh channel.
+		//So the spinner would only update when a download completes (when a download completes, it places a 1 in progressCh)
+		//We want the spinner to continuously update, so we continuously feed in 0's to the progressCh channel (every 50 milliseconds).
+		//This keeps the goroutine running and printing, and the extra 0's don't change downloadTotal.
+		ticker := time.NewTicker(50 * time.Millisecond)
+		go func() {
+			for {
+				select {
+				case <-ticker.C:
+					progressCh <- 0
+				}
+			}
+		}()
+
 		go func() {
 			downloadTotal := 0
 			for {
 				downloadTotal += <-progressCh
+
+				var spinner string
+				if downloadTotal < len(filteredResources) {
+					spinner = spinChars[spinI]
+					spinI += 1
+					if spinI == 5 {
+						spinI = 0
+					}
+				} else {
+					spinner = "✔"
+				}
 
 				//Bar is yellow while downloading, green when complete.
 				var color string
@@ -175,11 +204,11 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 
 				bar := "["
 				for i := 0; i < downloadTotal; i += 1 {
-					bar += "■"
+					bar += "█"
 				}
 
 				if downloadTotal < len(filteredResources) {
-					bar += "#"
+					bar += "░"
 				}
 
 				for i := downloadTotal + 1; i < len(filteredResources); i += 1 {
@@ -189,7 +218,7 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 				bar += "]"
 
 				//"\r" allows the bar to clear and update on one line.
-				line := "\r" + bar + "   " + strconv.Itoa(downloadTotal) + " of " + strconv.Itoa(len(filteredResources)) + " Complete"
+				line := "\r" + spinner + bar + "   " + strconv.Itoa(downloadTotal) + " of " + strconv.Itoa(len(filteredResources)) + " Complete"
 				fmt.Print(Color_Text(line, color))
 
 				if downloadTotal == len(filteredResources) {
