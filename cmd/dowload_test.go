@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"net/http"
-	"os"
 	"testing"
 
 	"github.com/cisco-open/grabit/test"
@@ -11,35 +9,30 @@ import (
 )
 
 func TestRunDownload(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		_, err := w.Write([]byte(`abcdef`))
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	port, server := test.HttpHandler(handler)
-	defer server.Close()
+	content := `abcdef`
+	port := test.TestHttpHandler(content, t)
 	testfilepath := test.TmpFile(t, fmt.Sprintf(`
 	[[Resource]]
 	Urls = ['http://localhost:%d/test.html']
 	Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='
-`, port))
+
+	[[Resource]]
+	Urls = ['http://localhost:%d/test3.html']
+	Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='
+`, port, port))
 	outputDir := test.TmpDir(t)
 	cmd := NewRootCmd()
 	cmd.SetArgs([]string{"-f", testfilepath, "download", "--dir", outputDir})
 	err := cmd.Execute()
 	assert.Nil(t, err)
+	for _, file := range []string{"test.html", "test3.html"} {
+		test.AssertFileContains(t, fmt.Sprintf("%s/%s", outputDir, file), content)
+	}
 }
 
 func TestRunDownloadWithTags(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		_, err := w.Write([]byte(`abcdef`))
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	port, server := test.HttpHandler(handler)
-	defer server.Close()
+	content := `abcdef`
+	port := test.TestHttpHandler(content, t)
 	testfilepath := test.TmpFile(t, fmt.Sprintf(`
 	[[Resource]]
 	Urls = ['http://localhost:%d/test.html']
@@ -56,24 +49,14 @@ func TestRunDownloadWithTags(t *testing.T) {
 	cmd.SetArgs([]string{"-f", testfilepath, "download", "--tag", "tag", "--dir", outputDir})
 	err := cmd.Execute()
 	assert.Nil(t, err)
-	files, err := os.ReadDir(outputDir)
-	assert.Nil(t, err)
-	actualFiles := []string{}
-	for _, file := range files {
-		actualFiles = append(actualFiles, file.Name())
+	for _, file := range []string{"test.html"} {
+		test.AssertFileContains(t, fmt.Sprintf("%s/%s", outputDir, file), content)
 	}
-	assert.ElementsMatch(t, []string{"test.html"}, actualFiles)
 }
 
 func TestRunDownloadWithoutTags(t *testing.T) {
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		_, err := w.Write([]byte(`abcdef`))
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	port, server := test.HttpHandler(handler)
-	defer server.Close()
+	content := `abcdef`
+	port := test.TestHttpHandler(content, t)
 	testfilepath := test.TmpFile(t, fmt.Sprintf(`
 	[[Resource]]
 	Urls = ['http://localhost:%d/test.html']
@@ -90,13 +73,9 @@ func TestRunDownloadWithoutTags(t *testing.T) {
 	cmd.SetArgs([]string{"-f", testfilepath, "download", "--notag", "tag", "--dir", outputDir})
 	err := cmd.Execute()
 	assert.Nil(t, err)
-	files, err := os.ReadDir(outputDir)
-	assert.Nil(t, err)
-	actualFiles := []string{}
-	for _, file := range files {
-		actualFiles = append(actualFiles, file.Name())
+	for _, file := range []string{"test2.html"} {
+		test.AssertFileContains(t, fmt.Sprintf("%s/%s", outputDir, file), content)
 	}
-	assert.ElementsMatch(t, []string{"test2.html"}, actualFiles)
 }
 
 func TestRunDownloadMultipleErrors(t *testing.T) {

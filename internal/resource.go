@@ -114,7 +114,10 @@ func (l *Resource) Download(dir string, mode os.FileMode, ctx context.Context) e
 			return err
 		}
 		if mode != NoFileMode {
-			os.Chmod(resPath, mode.Perm())
+			err = os.Chmod(resPath, mode.Perm())
+			if err != nil {
+				return err
+			}
 		}
 		ok = true
 	}
