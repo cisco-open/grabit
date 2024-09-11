@@ -10,6 +10,11 @@ import (
 
 func init() {
 	rootCmd.AddCommand(downloadCmd)
+
+	//Bar will not show unless --bar flag is used.
+	downloadCmd.Flags().Bool("bar", false, "Display progress bar during download")
+	downloadCmd.Flags().Lookup("bar").NoOptDefVal = "true"
+
 	downloadCmd.Flags().String("dir", ".", "Target directory where to store the files")
 	downloadCmd.Flags().StringArray("tag", []string{}, "Only download the resources with the given tag")
 	downloadCmd.Flags().StringArray("notag", []string{}, "Only download the resources without the given tag")
@@ -36,6 +41,8 @@ func runFetch(cmd *cobra.Command, args []string) {
 	FatalIfNotNil(err)
 	perm, err := cmd.Flags().GetString("perm")
 	FatalIfNotNil(err)
-	err = lock.Download(dir, tags, notags, perm)
+	bar, err := cmd.Flags().GetBool("bar")
+	FatalIfNotNil(err)
+	err = lock.Download(dir, tags, notags, perm, bar)
 	FatalIfNotNil(err)
 }

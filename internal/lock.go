@@ -88,7 +88,7 @@ func strToFileMode(perm string) (os.FileMode, error) {
 
 // Download gets all the resources in this lock file and moves them to
 // the destination directory.
-func (l *Lock) Download(dir string, tags []string, notags []string, perm string) error {
+func (l *Lock) Download(dir string, tags []string, notags []string, perm string, bar bool) error {
 	if stat, err := os.Stat(dir); err != nil || !stat.IsDir() {
 		return fmt.Errorf("'%s' is not a directory", dir)
 	}
@@ -159,33 +159,34 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string)
 	//		#   current, active download
 	//		_	download yet to be started
 	progressCh := make(chan int)
-	go func() {
-		downloadTotal := 0
-		for {
-			downloadTotal += <-progressCh
+	if bar {
+		go func() {
+			downloadTotal := 0
+			for {
+				downloadTotal += <-progressCh
 
-			bar := "["
-			for i := 0; i < downloadTotal; i += 1 {
-				bar += "■"
+				bar := "["
+				for i := 0; i < downloadTotal; i += 1 {
+					bar += "■"
+				}
+
+				if downloadTotal < len(filteredResources) {
+					bar += "#"
+				}
+
+				for i := downloadTotal + 1; i < len(filteredResources); i += 1 {
+					bar += "_"
+				}
+
+				bar += "]"
+				fmt.Printf("\r"+bar+"    %v of %v Complete", downloadTotal, len(filteredResources)) //"\r" allows the progress bar to clear and update on one line.
+				if downloadTotal == len(filteredResources) {
+					fmt.Println()
+					break
+				}
 			}
-
-			if downloadTotal < len(filteredResources) {
-				bar += "#"
-			}
-
-			for i := downloadTotal + 1; i < len(filteredResources); i += 1 {
-				bar += "_"
-			}
-
-			bar += "]"
-			fmt.Printf("\r"+bar+"   %v of %v Complete", downloadTotal, len(filteredResources)) //"\r" allows the progress bar to clear and update on one line.
-			if downloadTotal == len(filteredResources) {
-				fmt.Println()
-				break
-			}
-		}
-	}()
-
+		}()
+	}
 	for _, r := range filteredResources {
 		resource := r
 		go func() {
