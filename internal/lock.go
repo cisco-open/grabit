@@ -178,6 +178,7 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 			for {
 				downloadTotal += <-progressCh
 
+				//Spinner loops through chars in spinChars to give impression it's rotating.
 				var spinner string
 				if downloadTotal < len(filteredResources) {
 					spinner = spinChars[spinI]
@@ -197,6 +198,7 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 					color = "green"
 				}
 
+				//Build progress bar string.
 				bar := "║"
 				for i := 0; i < downloadTotal; i += 1 {
 					bar += "█"
@@ -209,9 +211,9 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 				for i := downloadTotal + 1; i < len(filteredResources); i += 1 {
 					bar += "_"
 				}
-
 				bar += "║"
 
+				//Build and print line.
 				//"\r" allows the bar to clear and update on one line.
 				line := "\r" + spinner + bar + "   " + strconv.Itoa(downloadTotal) + "/" + strconv.Itoa(len(filteredResources)) + " Complete"
 				fmt.Print(Color_Text(line, color))
