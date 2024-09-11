@@ -154,6 +154,8 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 
 	progressCh := make(chan int)
 	if bar {
+		startTime := time.Now()
+
 		spinChars := [5]string{"-", "\\", "|", "/", "-"}
 		spinI := 0 //Current char in spinChars.
 
@@ -240,10 +242,12 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 				}
 				completeStr := strconv.Itoa(downloadTotal) + "/" + strconv.Itoa(len(filteredResources)) + " Complete"
 
+				elapsedStr := strconv.Itoa(int(time.Now().Sub(startTime).Round(time.Second).Seconds())) + "s Elapsed"
+
 				//Build and print line.
 				//"\r" allows the bar to clear and update on one line.
 				pad := "          "
-				line := "\r" + spinner + barStr + pad + completeStr + pad + byteStr
+				line := "\r" + spinner + barStr + pad + completeStr + pad + byteStr + pad + elapsedStr
 				fmt.Print(Color_Text(line, color))
 
 				if downloadTotal == len(filteredResources) {
