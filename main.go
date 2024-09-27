@@ -4,12 +4,13 @@
 package main
 
 import (
-	"os"
-	"os/signal"
-
 	"github.com/cisco-open/grabit/cmd"
+	"github.com/cisco-open/grabit/downloader"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"os"
+	"os/signal"
+	"time"
 )
 
 func main() {
@@ -21,7 +22,8 @@ func main() {
 	signal.Notify(stopChan, os.Interrupt)
 	go listenForInterrupt(stopChan)
 
-	rootCmd := cmd.NewRootCmd()
+	d := downloader.NewDownloader(30 * time.Second)
+	rootCmd := cmd.NewRootCmd(d)
 	cmd.Execute(rootCmd)
 }
 
