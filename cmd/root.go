@@ -4,6 +4,8 @@
 package cmd
 
 import (
+	"context"
+	"github.com/cisco-open/grabit/downloader"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,7 +60,12 @@ func initLog(ll string) {
 	}
 }
 
-func Execute(rootCmd *cobra.Command) {
+func Execute(rootCmd *cobra.Command, d *downloader.Downloader) {
+	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+		ctx := context.WithValue(cmd.Context(), "downloader", d)
+		cmd.SetContext(ctx)
+	}
+
 	ll, err := rootCmd.PersistentFlags().GetString("log-level")
 	if err != nil {
 		log.Fatal().Msg(err.Error())

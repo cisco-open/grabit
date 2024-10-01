@@ -5,13 +5,12 @@ package internal
 
 import (
 	"bufio"
-	"context"
 	"errors"
 	"fmt"
+	"github.com/cisco-open/grabit/downloader"
+	toml "github.com/pelletier/go-toml/v2"
 	"os"
 	"strconv"
-
-	toml "github.com/pelletier/go-toml/v2"
 )
 
 var COMMENT_PREFIX = "//"
@@ -24,6 +23,12 @@ type Lock struct {
 
 type config struct {
 	Resource []Resource
+}
+
+type resource struct {
+	Urls      []string
+	Integrity string
+	Tags      []string
 }
 
 func NewLock(path string, newOk bool) (*Lock, error) {
@@ -89,61 +94,16 @@ func strToFileMode(perm string) (os.FileMode, error) {
 
 // Download gets all the resources in this lock file and moves them to
 // the destination directory.
-func (l *Lock) Download(dir string, tags []string, notags []string, perm string) error {
+func (l *Lock) Download(dir string, tags []string, notags []string, perm string, d *downloader.Downloader) error {
 	if stat, err := os.Stat(dir); err != nil || !stat.IsDir() {
 		return fmt.Errorf("'%s' is not a directory", dir)
 	}
-	mode, err := strToFileMode(perm)
+	_, err := strToFileMode(perm)
 	if err != nil {
 		return fmt.Errorf("'%s' is not a valid permission definition", perm)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	// Filter in the resources that have all the required tags.
-	tagFilteredResources := []Resource{}
-	if len(tags) > 0 {
-		for _, r := range l.conf.Resource {
-			hasAllTags := true
-			for _, tag := range tags {
-				hasTag := false
-				for _, rtag := range r.Tags {
-					if tag == rtag {
-						hasTag = true
-						break
-					}
-				}
-				if !hasTag {
-					hasAllTags = false
-					break
-				}
-			}
-			if hasAllTags {
-				tagFilteredResources = append(tagFilteredResources, r)
-			}
-		}
-	} else {
-		tagFilteredResources = l.conf.Resource
-	}
-	// Filter out the resources that have any 'notag' tag.
-	filteredResources := []Resource{}
-	if len(notags) > 0 {
-		for _, r := range tagFilteredResources {
-			hasTag := false
-			for _, notag := range notags {
-				for _, rtag := range r.Tags {
-					if notag == rtag {
-						hasTag = true
-					}
-				}
-			}
-			if !hasTag {
-				filteredResources = append(filteredResources, r)
-			}
-		}
-	} else {
-		filteredResources = tagFilteredResources
-	}
+	filteredResources := l.filterResources(tags, notags)
 
 	total := len(filteredResources)
 	if total == 0 {
@@ -153,27 +113,77 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string)
 	for _, r := range filteredResources {
 		resource := r
 		go func() {
-			err := resource.Download(dir, mode, ctx)
-			errorCh <- err
+			err := d.DownloadFile(resource.Urls[0], dir, resource.Integrity)
+			if err != nil {
+				errorCh <- fmt.Errorf("failed to download %s: %w", resource.Urls[0], err)
+			} else {
+				errorCh <- nil
+			}
 		}()
 	}
-	done := 0
+
 	errs := []error{}
-	for range total {
-		err = <-errorCh
-		if err != nil {
+	for i := 0; i < total; i++ {
+		if err := <-errorCh; err != nil {
 			errs = append(errs, err)
-		} else {
-			done += 1
 		}
 	}
-	if done == total {
-		return nil
-	}
+
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
 	return nil
+}
+
+func (l *Lock) filterResources(tags []string, notags []string) []Resource {
+	tagFilteredResources := l.conf.Resource
+	if len(tags) > 0 {
+		tagFilteredResources = []Resource{}
+		for _, r := range l.conf.Resource {
+			if r.hasAllTags(tags) {
+				tagFilteredResources = append(tagFilteredResources, r)
+			}
+		}
+	}
+
+	filteredResources := tagFilteredResources
+	if len(notags) > 0 {
+		filteredResources = []Resource{}
+		for _, r := range tagFilteredResources {
+			if !r.hasAnyTag(notags) {
+				filteredResources = append(filteredResources, r)
+			}
+		}
+	}
+
+	return filteredResources
+}
+
+func (r *Resource) hasAllTags(tags []string) bool {
+	for _, tag := range tags {
+		if !r.hasTag(tag) {
+			return false
+		}
+	}
+	return true
+}
+
+func (r *Resource) hasAnyTag(tags []string) bool {
+	for _, tag := range tags {
+		if r.hasTag(tag) {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *Resource) hasTag(tag string) bool {
+	for _, rtag := range r.Tags {
+		if tag == rtag {
+			return true
+		}
+	}
+	return false
 }
 
 // Save this lock file to disk.
@@ -207,4 +217,5 @@ func (l *Lock) Contains(url string) bool {
 		}
 	}
 	return false
+
 }

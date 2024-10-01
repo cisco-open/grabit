@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"github.com/cisco-open/grabit/downloader"
 	"github.com/cisco-open/grabit/internal"
 	"github.com/spf13/cobra"
 )
@@ -47,7 +48,9 @@ func runFetch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	err = lock.Download(dir, tags, notags, perm)
+
+	d := cmd.Context().Value("downloader").(*downloader.Downloader)
+	err = lock.Download(dir, tags, notags, perm, d)
 	if err != nil {
 		return err
 	}
