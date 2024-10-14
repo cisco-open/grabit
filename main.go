@@ -6,10 +6,8 @@ package main
 import (
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/cisco-open/grabit/cmd"
-	"github.com/cisco-open/grabit/downloader"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -19,13 +17,12 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	// Exit immediately upon reception of an interrupt signal.
-	stopChan := make(chan os.Signal, 1)
-	signal.Notify(stopChan, os.Interrupt)
-	go listenForInterrupt(stopChan)
+	stop4Chan := make(chan os.Signal, 1)
+	signal.Notify(stop4Chan, os.Interrupt)
+	go listenForInterrupt(stop4Chan)
 
-	d := downloader.NewDownloader(30 * time.Second)
 	rootCmd := cmd.NewRootCmd()
-	cmd.Execute(rootCmd, d)
+	cmd.Execute(rootCmd)
 }
 
 func listenForInterrupt(stopScan chan os.Signal) {

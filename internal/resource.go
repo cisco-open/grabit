@@ -8,6 +8,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -24,12 +26,14 @@ type Resource struct {
 	Integrity string
 	Tags      []string `toml:",omitempty"`
 	Filename  string   `toml:",omitempty"`
+	Dynamic   bool     `toml:",omitempty"`
 }
 
-func NewResourceFromUrl(urls []string, algo string, tags []string, filename string) (*Resource, error) {
+func NewResourceFromUrl(urls []string, algo string, tags []string, filename string, dynamic bool) (*Resource, error) {
 	if len(urls) < 1 {
 		return nil, fmt.Errorf("empty url list")
 	}
+
 	url := urls[0]
 	ctx := context.Background()
 	path, err := GetUrltoTempFile(url, ctx)
@@ -63,6 +67,21 @@ func getUrl(u string, fileName string, ctx context.Context) (string, error) {
 	return fileName, nil
 }
 
+func checkIntegrityFromUrl(url string, expectedIntegrity string) error {
+	tempFile, err := GetUrltoTempFile(url, context.Background())
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tempFile)
+
+	algo, err := getAlgoFromIntegrity(expectedIntegrity)
+	if err != nil {
+		return err
+	}
+
+	return checkIntegrityFromFile(tempFile, algo, expectedIntegrity, url)
+}
+
 // GetUrlToDir downloads the given resource to the given directory and returns the path to it.
 func GetUrlToDir(u string, targetDir string, ctx context.Context) (string, error) {
 	// create temporary name in the target directory.
@@ -83,55 +102,27 @@ func GetUrltoTempFile(u string, ctx context.Context) (string, error) {
 }
 
 func (l *Resource) Download(dir string, mode os.FileMode, ctx context.Context) error {
-	ok := false
-	algo, err := getAlgoFromIntegrity(l.Integrity)
-	if err != nil {
-		return err
-	}
-	var downloadError error = nil
 	for _, u := range l.Urls {
-		// Download file in the target directory so that the call to
-		// os.Rename is atomic.
-		lpath, err := GetUrlToDir(u, dir, ctx)
+		err := l.DownloadFile(u, dir)
 		if err != nil {
-			downloadError = err
-			break
-		}
-		err = checkIntegrityFromFile(lpath, algo, l.Integrity, u)
-		if err != nil {
-			return err
+			continue
 		}
 
-		localName := ""
-		if l.Filename != "" {
-			localName = l.Filename
-		} else {
+		localName := l.Filename
+		if localName == "" {
 			localName = path.Base(u)
 		}
 		resPath := filepath.Join(dir, localName)
-		err = os.Rename(lpath, resPath)
-		if err != nil {
-			return err
-		}
+
 		if mode != NoFileMode {
 			err = os.Chmod(resPath, mode.Perm())
 			if err != nil {
 				return err
 			}
 		}
-		ok = true
+		return nil
 	}
-	if !ok {
-		if err == nil {
-			if downloadError != nil {
-				return downloadError
-			} else {
-				panic("no error but no file downloaded")
-			}
-		}
-		return err
-	}
-	return nil
+	return fmt.Errorf("failed to download resource from any URL")
 }
 
 func (l *Resource) Contains(url string) bool {
@@ -141,4 +132,58 @@ func (l *Resource) Contains(url string) bool {
 		}
 	}
 	return false
+}
+func calculateFileHash(filePath string) (string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func (l *Resource) DownloadFile(url, targetDir string) error {
+	fileName := filepath.Base(url)
+	targetPath := filepath.Join(targetDir, fileName)
+
+	if _, err := os.Stat(targetPath); err == nil {
+		fileHash, err := calculateFileHash(targetPath)
+		if err == nil && fileHash == l.Integrity {
+			log.Debug().Str("File", fileName).Msg("File already exists with correct hash. Skipping download.")
+			return nil
+		}
+	}
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(targetPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	downloadedHash, err := calculateFileHash(targetPath)
+	if err != nil {
+		return err
+	}
+	if downloadedHash != l.Integrity {
+		return fmt.Errorf("hash mismatch: expected %s, got %s", l.Integrity, downloadedHash)
+	}
+
+	return nil
 }

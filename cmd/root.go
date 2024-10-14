@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"context"
-	"github.com/cisco-open/grabit/downloader"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var verbose bool
+
 func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "grabit",
@@ -23,10 +24,14 @@ func NewRootCmd() *cobra.Command {
 	}
 	cmd.PersistentFlags().StringP("lock-file", "f", filepath.Join(getPwd(), GRAB_LOCK), "lockfile path (default: $PWD/grabit.lock")
 	cmd.PersistentFlags().StringP("log-level", "l", "info", "log level (trace, debug, info, warn, error, fatal)")
+	cmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
+
 	addDelete(cmd)
 	addDownload(cmd)
 	addAdd(cmd)
 	addVersion(cmd)
+	AddUpdate(cmd)
+	AddVerify(cmd)
 	return cmd
 }
 
@@ -60,7 +65,7 @@ func initLog(ll string) {
 	}
 }
 
-func Execute(rootCmd *cobra.Command, d *downloader.Downloader) {
+func Execute(rootCmd *cobra.Command) {
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		ctx := context.WithValue(cmd.Context(), "downloader", d)
 		cmd.SetContext(ctx)

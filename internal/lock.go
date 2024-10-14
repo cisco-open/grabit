@@ -54,13 +54,13 @@ func NewLock(path string, newOk bool) (*Lock, error) {
 	return &Lock{path: path, conf: conf}, nil
 }
 
-func (l *Lock) AddResource(paths []string, algo string, tags []string, filename string) error {
+func (l *Lock) AddResource(paths []string, algo string, tags []string, filename string, dynamic bool) error {
 	for _, u := range paths {
 		if l.Contains(u) {
 			return fmt.Errorf("resource '%s' is already present", u)
 		}
 	}
-	r, err := NewResourceFromUrl(paths, algo, tags, filename)
+	r, err := NewResourceFromUrl(paths, algo, tags, filename, dynamic)
 	if err != nil {
 		return err
 	}
@@ -184,6 +184,32 @@ func (r *Resource) hasTag(tag string) bool {
 		}
 	}
 	return false
+}
+
+func (l *Lock) UpdateResource(url string) error {
+	for i, r := range l.conf.Resource {
+		if r.Contains(url) {
+			newResource, err := NewResourceFromUrl(r.Urls, r.Integrity, r.Tags, r.Filename, r.Dynamic)
+			if err != nil {
+				return err
+			}
+			l.conf.Resource[i] = *newResource
+			return l.Save()
+		}
+	}
+	return fmt.Errorf("resource with URL '%s' not found", url)
+}
+
+func (l *Lock) VerifyIntegrity() error {
+	for _, r := range l.conf.Resource {
+		for _, url := range r.Urls {
+			err := checkIntegrityFromUrl(url, r.Integrity)
+			if err != nil {
+				return fmt.Errorf("integrity check failed for %s: %w", url, err)
+			}
+		}
+	}
+	return nil
 }
 
 // Save this lock file to disk.

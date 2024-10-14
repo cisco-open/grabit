@@ -5,10 +5,12 @@ package internal
 
 import (
 	"fmt"
+	"github.com/cisco-open/grabit/downloader"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/cisco-open/grabit/test"
 	"github.com/stretchr/testify/assert"
@@ -51,7 +53,7 @@ func TestLockManipulations(t *testing.T) {
 	port, server := test.HttpHandler(handler)
 	defer server.Close()
 	resource := fmt.Sprintf("http://localhost:%d/test2.html", port)
-	err = lock.AddResource([]string{resource}, "sha512", []string{}, "")
+	err = lock.AddResource([]string{resource}, "sha512", []string{}, "", false)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(lock.conf.Resource))
 	err = lock.Save()
@@ -63,12 +65,12 @@ func TestLockManipulations(t *testing.T) {
 func TestDuplicateResource(t *testing.T) {
 	url := "http://localhost:123456/test.html"
 	path := test.TmpFile(t, fmt.Sprintf(`
-		[[Resource]]
-		Urls = ['%s']
-		Integrity = 'sha256-asdasdasd'`, url))
+       [[Resource]]
+       Urls = ['%s']
+       Integrity = 'sha256-asdasdasd'`, url))
 	lock, err := NewLock(path, false)
 	assert.Nil(t, err)
-	err = lock.AddResource([]string{url}, "sha512", []string{}, "")
+	err = lock.AddResource([]string{url}, "sha512", []string{}, "", false)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "already present")
 }
@@ -115,7 +117,7 @@ func TestDownload(t *testing.T) {
 	lock, err := NewLock(path, false)
 	assert.Nil(t, err)
 	dir := test.TmpDir(t)
-	err = lock.Download(dir, []string{}, []string{}, perm)
+	err = lock.Download(dir, []string{}, []string{}, perm, downloader.NewDownloader(10*time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}

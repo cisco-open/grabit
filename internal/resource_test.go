@@ -4,12 +4,13 @@
 package internal
 
 import (
+	"context"
 	"fmt"
-	"net/http"
-	"testing"
-
 	"github.com/cisco-open/grabit/test"
 	"github.com/stretchr/testify/assert"
+	"net/http"
+	"testing"
+	"time"
 )
 
 func TestNewResourceFromUrl(t *testing.T) {
@@ -41,7 +42,7 @@ func TestNewResourceFromUrl(t *testing.T) {
 	}
 
 	for _, data := range tests {
-		resource, err := NewResourceFromUrl(data.urls, algo, []string{}, "")
+		resource, err := NewResourceFromUrl(data.urls, "sha256", []string{}, "", false)
 		assert.Equal(t, data.valid, err == nil)
 		if err != nil {
 			assert.Contains(t, err.Error(), data.errorContains)
@@ -49,4 +50,25 @@ func TestNewResourceFromUrl(t *testing.T) {
 			assert.Equal(t, data.res, *resource)
 		}
 	}
+}
+func TestDynamicResourceDownload(t *testing.T) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(time.Now().String()))
+	}
+	port, server := test.HttpHandler(handler)
+	defer server.Close()
+
+	url := fmt.Sprintf("http://localhost:%d/dynamic", port)
+	resource := &Resource{
+		Urls:    []string{url},
+		Dynamic: true,
+	}
+
+	dir := t.TempDir()
+	err := resource.Download(dir, 0644, context.Background())
+	assert.NoError(t, err)
+
+	// Download again to ensure it doesn't fail due to content change
+	err = resource.Download(dir, 0644, context.Background())
+	assert.NoError(t, err)
 }
