@@ -18,7 +18,6 @@ func addAdd(cmd *cobra.Command) {
 	addCmd.Flags().String("algo", internal.RecommendedAlgo, "Integrity algorithm")
 	addCmd.Flags().String("filename", "", "Target file name to use when downloading the resource")
 	addCmd.Flags().StringArray("tag", []string{}, "Resource tags")
-	addCmd.Flags().Bool("dynamic", false, "Mark the resource as dynamic (skip integrity checks)")
 	cmd.AddCommand(addCmd)
 }
 
