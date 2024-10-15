@@ -133,3 +133,4 @@ func TestDownload(t *testing.T) {
 	}
 	assert.Equal(t, stats.Mode().Perm().String(), strPerm)
 }
+
