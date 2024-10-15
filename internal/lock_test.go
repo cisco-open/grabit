@@ -5,7 +5,6 @@ package internal
 
 import (
 	"fmt"
-	"github.com/cisco-open/grabit/downloader"
 	"net/http"
 	"os"
 	"path/filepath"
