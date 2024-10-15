@@ -17,9 +17,9 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	// Exit immediately upon reception of an interrupt signal.
-	stop4Chan := make(chan os.Signal, 1)
-	signal.Notify(stop4Chan, os.Interrupt)
-	go listenForInterrupt(stop4Chan)
+	stopChan := make(chan os.Signal, 1)
+	signal.Notify(stopChan, os.Interrupt)
+	go listenForInterrupt(stopChan)
 
 	rootCmd := cmd.NewRootCmd()
 	cmd.Execute(rootCmd)
