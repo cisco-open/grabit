@@ -4,7 +4,6 @@
 package cmd
 
 import (
-	"github.com/cisco-open/grabit/downloader"
 	"github.com/cisco-open/grabit/internal"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
