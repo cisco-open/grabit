@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"bytes"
-	"github.com/cisco-open/grabit/downloader"
 	"testing"
 	"time"
 
