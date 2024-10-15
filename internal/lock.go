@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"github.com/cisco-open/grabit/downloader"
 	toml "github.com/pelletier/go-toml/v2"
 )
 
