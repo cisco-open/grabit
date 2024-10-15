@@ -7,10 +7,10 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/cisco-open/grabit/downloader"
-	toml "github.com/pelletier/go-toml/v2"
 	"os"
 	"strconv"
+	"github.com/cisco-open/grabit/downloader"
+	toml "github.com/pelletier/go-toml/v2"
 )
 
 var COMMENT_PREFIX = "//"
