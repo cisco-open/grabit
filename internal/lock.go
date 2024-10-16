@@ -93,46 +93,36 @@ func strToFileMode(perm string) (os.FileMode, error) {
 
 // Download gets all the resources in this lock file and moves them to
 // the destination directory.
-func (l *Lock) Download(dir string, tags []string, notags []string, perm string, d *downloader.Downloader) error {
-	if stat, err := os.Stat(dir); err != nil || !stat.IsDir() {
-		return fmt.Errorf("'%s' is not a directory", dir)
-	}
-	_, err := strToFileMode(perm)
-	if err != nil {
-		return fmt.Errorf("'%s' is not a valid permission definition", perm)
-	}
+func (l *Lock) Download(dir string, tags []string, notags []string, perm string, ctx context.Context) error {
+    if stat, err := os.Stat(dir); err != nil || !stat.IsDir() {
+        return fmt.Errorf("'%s' is not a directory", dir)
+    }
+    mode, err := strToFileMode(perm)
+    if err != nil {
+        return fmt.Errorf("'%s' is not a valid permission definition", perm)
+    }
 
-	filteredResources := l.filterResources(tags, notags)
+    filteredResources := l.filterResources(tags, notags)
 
-	total := len(filteredResources)
-	if total == 0 {
-		return fmt.Errorf("nothing to download")
-	}
-	errorCh := make(chan error, total)
-	for _, r := range filteredResources {
-		resource := r
-		go func() {
-			err := d.DownloadFile(resource.Urls[0], dir, resource.Integrity)
-			if err != nil {
-				errorCh <- fmt.Errorf("failed to download %s: %w", resource.Urls[0], err)
-			} else {
-				errorCh <- nil
-			}
-		}()
-	}
+    total := len(filteredResources)
+    if total == 0 {
+        return fmt.Errorf("nothing to download")
+    }
+    
+    errs := make([]error, 0)
+    for _, r := range filteredResources {
+        err := r.Download(dir, mode, ctx)
+        if err != nil {
+            errs = append(errs, fmt.Errorf("failed to download %s: %w", r.Urls[0], err))
+        }
+    }
 
-	errs := []error{}
-	for i := 0; i < total; i++ {
-		if err := <-errorCh; err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-	return nil
+    if len(errs) > 0 {
+        return errors.Join(errs...)
+    }
+    return nil
 }
+
 
 func (l *Lock) filterResources(tags []string, notags []string) []Resource {
 	tagFilteredResources := l.conf.Resource
