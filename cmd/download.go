@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"context"
 	"github.com/cisco-open/grabit/internal"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -60,7 +61,9 @@ func runFetch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	d := cmd.Context().Value("downloader").(*downloader.Downloader)
+	d := &internal.Lock{} // Adjusted to use internal.Lock instead of downloader
+	ctx := context.WithValue(context.Background(), "downloader", d)
+	cmd.SetContext(ctx)
 
 	if verbose {
 		log.Debug().Str("lockFile", lockFile).Str("dir", dir).Strs("tags", tags).Strs("notags", notags).Str("perm", perm).Msg("Starting download")

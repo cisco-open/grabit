@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cisco-open/grabit/internal"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -64,6 +65,8 @@ func initLog(ll string) {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 }
+
+var d = internal.GetUrltoTempFile
 
 func Execute(rootCmd *cobra.Command) {
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
