@@ -6,6 +6,7 @@ package internal
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -155,7 +156,7 @@ func calculateFileHash(filePath string) (string, error) {
 		return "", err
 	}
 
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	return base64.StdEncoding.EncodeToString(hash.Sum(nil)), nil
 }
 
 // this method downloads a file from a specified URL to a target directory,

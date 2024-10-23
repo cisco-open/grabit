@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
-	"time"
 )
 
 //This is a test function for creating a new Resource from a given URL.
@@ -63,7 +62,7 @@ func TestNewResourceFromUrl(t *testing.T) {
 
 func TestDynamicResourceDownload(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(time.Now().String()))
+		w.Write([]byte(`test content`))
 	}
 	port, server := test.HttpHandler(handler)
 	defer server.Close()
