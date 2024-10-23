@@ -7,6 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestRunDelete tests the delete command of the CLI application.
+// It creates a temporary file with a resource configuration, sets up the command with the appropriate arguments, and executes it.
+// The test asserts that no error occurred during the execution of the command.
 func TestRunDelete(t *testing.T) {
 	testfilepath := test.TmpFile(t, `
 	[[Resource]]

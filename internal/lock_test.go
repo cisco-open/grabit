@@ -5,14 +5,12 @@ package internal
 
 import (
 	"fmt"
+	"github.com/cisco-open/grabit/test"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
-
-	"github.com/cisco-open/grabit/test"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestNewLockInvalid(t *testing.T) {
@@ -108,15 +106,15 @@ func TestDownload(t *testing.T) {
 	port, server := test.HttpHandler(handler)
 	defer server.Close()
 	path := test.TmpFile(t, fmt.Sprintf(`
-		[[Resource]]
-		Urls = ['http://localhost:%d/test.html']
-		Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='`, port))
+        [[Resource]]
+        Urls = ['http://localhost:%d/test.html']
+        Integrity = 'sha256-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE='`, port))
 	perm := "467"
 	strPerm := "-r--rw-rwx"
 	lock, err := NewLock(path, false)
 	assert.Nil(t, err)
 	dir := test.TmpDir(t)
-	err = lock.Download(dir, []string{}, []string{}, perm, downloader.NewDownloader(10*time.Second))
+	err = lock.Download(dir, []string{}, []string{}, perm)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,4 +131,3 @@ func TestDownload(t *testing.T) {
 	}
 	assert.Equal(t, stats.Mode().Perm().String(), strPerm)
 }
-

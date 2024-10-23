@@ -12,6 +12,10 @@ import (
 	"strings"
 )
 
+// getIntegrityFromFile computes the integrity hash of a file given its path and the hashing algorithm.
+// It reads the file in chunks of 10MB, computes the hash using the specified algorithm, and returns
+// the hash as a base64-encoded string prefixed with the algorithm name.
+
 func getIntegrityFromFile(path string, algo string) (string, error) {
 	hash, err := NewHash(algo)
 	if err != nil {
@@ -46,6 +50,10 @@ func getIntegrityFromFile(path string, algo string) (string, error) {
 	return fmt.Sprintf("%s-%s", algo, base64.StdEncoding.EncodeToString(h)), nil
 }
 
+// getIntegrityFromFile computes the integrity hash of a file given its path and the hashing algorithm.
+// It reads the file in chunks of 10MB, computes the hash using the specified algorithm, and returns
+// the hash as a base64-encoded string prefixed with the algorithm name.
+
 func checkIntegrityFromFile(path string, algo string, integrity string, u string) error {
 	computedIntegrity, err := getIntegrityFromFile(path, algo)
 	if err != nil {
@@ -56,6 +64,11 @@ func checkIntegrityFromFile(path string, algo string, integrity string, u string
 	}
 	return nil
 }
+
+// getAlgoFromIntegrity extracts the hashing algorithm from a given Subresource Integrity (SRI) string.
+// It splits the SRI string on the '-' character and checks if the resulting slices are valid.
+// If valid, it attempts to create a new hash object using the first part of the split string.
+// If successful, it returns the algorithm name; otherwise, it returns an error.
 
 func getAlgoFromIntegrity(integrity string) (string, error) {
 	splits := strings.Split(integrity, "-")

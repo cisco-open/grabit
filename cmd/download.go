@@ -4,12 +4,15 @@
 package cmd
 
 import (
-	"context"
 	"github.com/cisco-open/grabit/internal"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
+
+// This Go code defines a command-line interface (CLI) command for downloading resources.
+// It uses the Cobra library to create a command called "download" with various flags
+// to customize the download process, such as specifying the target directory,
+// filtering by tags, setting file permissions, and enabling verbose output.
 
 func addDownload(cmd *cobra.Command) {
 	downloadCmd := &cobra.Command{
@@ -26,15 +29,15 @@ func addDownload(cmd *cobra.Command) {
 	cmd.AddCommand(downloadCmd)
 }
 
+// Summary: The runFetch function handles the download process by configuring logging levels,
+// managing a lock file, and retrieving various command-line arguments such as directory,
+// tags, and permissions. It sets up a context for the downloader and initiates the download
+// process while logging relevant information at different stages.
+
 func runFetch(cmd *cobra.Command, args []string) error {
 	logLevel, _ := cmd.Flags().GetString("log-level")
 	level, _ := zerolog.ParseLevel(logLevel)
 	zerolog.SetGlobalLevel(level)
-
-	if level <= zerolog.DebugLevel {
-		log.Debug().Msg("Starting download")
-		// Add more debug logs as needed
-	}
 
 	lockFile, err := cmd.Flags().GetString("lock-file")
 	if err != nil {
@@ -61,22 +64,5 @@ func runFetch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	d := &internal.Lock{} // Adjusted to use internal.Lock instead of downloader
-	ctx := context.WithValue(context.Background(), "downloader", d)
-	cmd.SetContext(ctx)
-
-	if verbose {
-		log.Debug().Str("lockFile", lockFile).Str("dir", dir).Strs("tags", tags).Strs("notags", notags).Str("perm", perm).Msg("Starting download")
-	}
-
-	err = lock.Download(dir, tags, notags, perm, d)
-	if err != nil {
-		return err
-	}
-
-	if verbose {
-		log.Debug().Msg("Download completed successfully")
-	}
-
-	return nil
+	return lock.Download(dir, tags, notags, perm)
 }

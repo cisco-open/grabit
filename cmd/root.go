@@ -15,6 +15,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewRootCmd creates and returns a new Cobra command for the Grabit application.
+// It sets up the command's usage, description, and persistent flags for configuration options
+// such as lock file path, log level, and verbosity. Additional functionalities like delete,
+// download, add, version, update, and verify commands are also registered.
+
 var verbose bool
 
 func NewRootCmd() *cobra.Command {
@@ -31,10 +36,10 @@ func NewRootCmd() *cobra.Command {
 	addDownload(cmd)
 	addAdd(cmd)
 	addVersion(cmd)
-	AddUpdate(cmd)
-	AddVerify(cmd)
 	return cmd
 }
+
+// getPwd retrieves the current working directory of the program. If an error occurs while fetching the directory, it logs the error and terminates the program.
 
 func getPwd() string {
 	path, err := os.Getwd()
@@ -43,6 +48,11 @@ func getPwd() string {
 	}
 	return path
 }
+
+// This Go code initializes a global logging level using the zerolog package based on the provided log level string.
+// It supports various levels: trace, debug, info, warn, error, and fatal.
+// If an unrecognized level is provided, it defaults to info level.
+// Additionally, a variable 'd' is defined to hold a function reference to get a URL to a temporary file.
 
 var GRAB_LOCK = "grabit.lock"
 
@@ -67,6 +77,11 @@ func initLog(ll string) {
 }
 
 var d = internal.GetUrltoTempFile
+
+// Execute initializes the command-line application by setting up a persistent pre-run function
+// that adds a context value for a downloader, retrieves the log level from flags, initializes logging,
+// and executes the root command. It handles errors, specifically checking for unknown flags
+// and exiting with a specific code if encountered.
 
 func Execute(rootCmd *cobra.Command) {
 	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {

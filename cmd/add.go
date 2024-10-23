@@ -8,6 +8,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// This code defines a command for adding a new resource using the Cobra library.
+// It sets up the "add" command with a short description, requires at least one argument,
+// and specifies flags for the integrity algorithm, target filename, and resource tags.
+
 func addAdd(cmd *cobra.Command) {
 	addCmd := &cobra.Command{
 		Use:   "add",
@@ -20,6 +24,8 @@ func addAdd(cmd *cobra.Command) {
 	addCmd.Flags().StringArray("tag", []string{}, "Resource tags")
 	cmd.AddCommand(addCmd)
 }
+
+// This function, runAdd, handles the addition of a resource by first retrieving various command line flags such as lock file, algorithm, tags, filename, and dynamic status. It then creates a new lock using the specified lock file, adds the resource using the provided arguments, and finally saves the lock. Error handling is implemented to ensure that any issues during these operations are returned appropriately.
 
 func runAdd(cmd *cobra.Command, args []string) error {
 	lockFile, err := cmd.Flags().GetString("lock-file")

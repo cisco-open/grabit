@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+// TestRunRoot tests the execution of the root command to ensure it outputs the expected string related to integrity verification.
+
 func TestRunRoot(t *testing.T) {
 	rootCmd := NewRootCmd()
 	buf := new(bytes.Buffer)

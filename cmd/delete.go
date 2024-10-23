@@ -8,6 +8,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// This code defines a command for deleting existing resources using the Cobra library in Go.
+// The 'delete' command requires at least one argument and executes the 'runDel' function when invoked.
+
 func addDelete(cmd *cobra.Command) {
 	var delCmd = &cobra.Command{
 		Use:   "delete",
@@ -17,6 +20,10 @@ func addDelete(cmd *cobra.Command) {
 	}
 	cmd.AddCommand(delCmd)
 }
+
+// runDel function handles the deletion of resources specified in the command arguments.
+// It retrieves a lock file path from the command flags, creates a lock instance,
+// deletes each resource listed in the arguments, and saves the updated lock state.
 
 func runDel(cmd *cobra.Command, args []string) error {
 	lockFile, err := cmd.Flags().GetString("lock-file")

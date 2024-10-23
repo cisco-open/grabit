@@ -13,6 +13,10 @@ import (
 	"time"
 )
 
+//This is a test function for creating a new Resource from a given URL.
+//It sets up a mock HTTP server to respond with a specific byte sequence.
+//The test cases check the validity of URLs, ensuring that valid URLs return the expected Resource and invalid URLs return appropriate error messages.
+
 func TestNewResourceFromUrl(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		_, err := w.Write([]byte(`abcdef`))
@@ -51,6 +55,12 @@ func TestNewResourceFromUrl(t *testing.T) {
 		}
 	}
 }
+
+// TestDynamicResourceDownload tests the downloading of a dynamic resource.
+// It sets up a temporary HTTP server that responds with the current time,
+// then attempts to download the resource twice to ensure that the download
+// functionality works correctly even with changing content.
+
 func TestDynamicResourceDownload(t *testing.T) {
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(time.Now().String()))
