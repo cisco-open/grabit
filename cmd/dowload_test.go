@@ -123,3 +123,22 @@ func TestRunDownloadFailsIntegrityTest(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "integrity mismatch")
 }
+
+func TestRunDownloadTriesAllUrls(t *testing.T) {
+	content := `abcdef`
+	contentIntegrity := getSha256Integrity(content)
+	port := test.TestHttpHandler(content, t)
+	testfilepath := test.TmpFile(t, fmt.Sprintf(`
+	[[Resource]]
+	Urls = ['http://cannot-be-resolved.no:12/test.html', 'http://localhost:%d/test.html']
+	Integrity = '%s'
+`, port, contentIntegrity))
+	outputDir := test.TmpDir(t)
+	cmd := NewRootCmd()
+	cmd.SetArgs([]string{"-f", testfilepath, "download", "--dir", outputDir})
+	err := cmd.Execute()
+	assert.Nil(t, err)
+	for _, file := range []string{"test.html"} {
+		test.AssertFileContains(t, fmt.Sprintf("%s/%s", outputDir, file), content)
+	}
+}
