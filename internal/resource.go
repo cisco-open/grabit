@@ -24,15 +24,16 @@ type Resource struct {
 	Integrity string
 	Tags      []string `toml:",omitempty"`
 	Filename  string   `toml:",omitempty"`
+	CacheUri  string   `toml:",omitempty"`
 }
 
-func NewResourceFromUrl(urls []string, algo string, tags []string, filename string) (*Resource, error) {
+func NewResourceFromUrl(urls []string, algo string, tags []string, filename string, cacheURL string) (*Resource, error) {
 	if len(urls) < 1 {
 		return nil, fmt.Errorf("empty url list")
 	}
 	url := urls[0]
 	ctx := context.Background()
-	path, err := GetUrltoTempFile(url, ctx)
+	path, err := GetUrltoTempFile(url, "", ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get url: %s", err)
 	}
@@ -41,48 +42,79 @@ func NewResourceFromUrl(urls []string, algo string, tags []string, filename stri
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute ressource integrity: %s", err)
 	}
-	return &Resource{Urls: urls, Integrity: integrity, Tags: tags, Filename: filename}, nil
+
+	return &Resource{Urls: urls, Integrity: integrity, Tags: tags, Filename: filename, CacheUri: cacheURL}, nil
 }
 
 // getUrl downloads the given resource and returns the path to it.
-func getUrl(u string, fileName string, ctx context.Context) (string, error) {
+func getUrl(u string, fileName string, bearer string, ctx context.Context) (string, error) {
 	_, err := url.Parse(u)
 	if err != nil {
 		return "", fmt.Errorf("invalid url '%s': %s", u, err)
 	}
 	log.Debug().Str("URL", u).Msg("Downloading")
-	err = requests.
+
+	req := requests.
 		URL(u).
 		Header("Accept", "*/*").
-		ToFile(fileName).
-		Fetch(ctx)
+		ToFile(fileName)
+
+	if bearer != "" {
+		req.Header("Authorization", fmt.Sprintf("Bearer %s", bearer))
+	}
+
+	err = req.Fetch(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to download '%s': %s", u, err)
 	}
-	log.Debug().Str("URL", u).Msg("Downloaded")
+
 	return fileName, nil
 }
 
 // GetUrlToDir downloads the given resource to the given directory and returns the path to it.
-func GetUrlToDir(u string, targetDir string, ctx context.Context) (string, error) {
+func GetUrlToDir(u string, targetDir string, bearer string, ctx context.Context) (string, error) {
 	// create temporary name in the target directory.
 	h := sha256.New()
 	h.Write([]byte(u))
 	fileName := filepath.Join(targetDir, fmt.Sprintf(".%s", hex.EncodeToString(h.Sum(nil))))
-	return getUrl(u, fileName, ctx)
+	return getUrl(u, fileName, bearer, ctx)
 }
 
 // GetUrlWithDir downloads the given resource to a temporary file and returns the path to it.
-func GetUrltoTempFile(u string, ctx context.Context) (string, error) {
+func GetUrltoTempFile(u string, bearer string, ctx context.Context) (string, error) {
 	file, err := os.CreateTemp("", "prefix")
 	if err != nil {
 		log.Fatal().Err(err)
 	}
 	fileName := file.Name()
-	return getUrl(u, fileName, ctx)
+	return getUrl(u, fileName, "", ctx)
 }
 
 func (l *Resource) Download(dir string, mode os.FileMode, ctx context.Context) error {
+	// Check if a cache URL exists to use Artifactory first
+	if l.CacheUri != "" {
+		token := os.Getenv("GRABIT_ARTIFACTORY_TOKEN")
+		if token != "" {
+			artifactoryURL := fmt.Sprintf("%s/%s", l.CacheUri, l.Integrity)
+			localName := l.Filename
+			if localName == "" {
+				localName = path.Base(l.Urls[0])
+			}
+			resPath := filepath.Join(dir, localName)
+
+			// Use getUrl directly with bearer token for Artifactory
+			tmpPath, err := getUrl(artifactoryURL, resPath, token, ctx)
+			if err == nil {
+				if mode != NoFileMode {
+					err = os.Chmod(tmpPath, mode.Perm())
+				}
+				if err == nil {
+					return nil // Success
+				}
+			}
+			fmt.Printf("Failed to download from Artifactory, falling back to original URL: %v\n", err)
+		}
+	}
 	ok := false
 	algo, err := getAlgoFromIntegrity(l.Integrity)
 	if err != nil {
@@ -121,7 +153,7 @@ func (l *Resource) Download(dir string, mode os.FileMode, ctx context.Context) e
 
 		// Download file in the target directory so that the call to
 		// os.Rename is atomic.
-		lpath, err := GetUrlToDir(u, dir, ctx)
+		lpath, err := GetUrlToDir(u, dir, "", ctx)
 		if err != nil {
 			downloadError = err
 			continue
@@ -141,11 +173,20 @@ func (l *Resource) Download(dir string, mode os.FileMode, ctx context.Context) e
 			}
 		}
 		ok = true
+		if l.CacheUri != "" && os.Getenv("NO_CACHE_UPLOAD") != "1" {
+			if uploadErr := uploadToArtifactory(resPath, l.CacheUri, l.Integrity); uploadErr != nil {
+				fmt.Printf("Warning: Failed to upload to cache: %v\n", uploadErr)
+			}
+		}
 		break
 	}
 	if !ok {
-		if downloadError != nil {
-			return downloadError
+		if err == nil {
+			if downloadError != nil {
+				return downloadError
+			} else {
+				panic("no error but no file downloaded")
+			}
 		}
 		return err
 	}
