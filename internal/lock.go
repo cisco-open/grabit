@@ -8,13 +8,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
+	"path"
+	"path/filepath"
 	"strconv"
+	"strings"
 
+	"github.com/carlmjohnson/requests"
 	toml "github.com/pelletier/go-toml/v2"
+	"github.com/rs/zerolog/log"
 )
 
 var COMMENT_PREFIX = "//"
+
+// getArtifactoryURL constructs the URL for an artifact in Artifactory
+func getArtifactoryURL(baseURL, integrity string) string {
+	return fmt.Sprintf("%s/%s", baseURL, integrity)
+
+}
 
 // Lock represents a grabit lockfile.
 type Lock struct {
@@ -49,28 +61,97 @@ func NewLock(path string, newOk bool) (*Lock, error) {
 	return &Lock{path: path, conf: conf}, nil
 }
 
-func (l *Lock) AddResource(paths []string, algo string, tags []string, filename string) error {
+func (l *Lock) AddResource(paths []string, algo string, tags []string, filename string, cacheURL string) error {
 	for _, u := range paths {
 		if l.Contains(u) {
 			return fmt.Errorf("resource '%s' is already present", u)
 		}
 	}
-	r, err := NewResourceFromUrl(paths, algo, tags, filename)
+	r, err := NewResourceFromUrl(paths, algo, tags, filename, cacheURL)
 	if err != nil {
 		return err
 	}
+
+	// If cache URL is provided, handles Artifactory upload
+	if cacheURL != "" {
+		token := os.Getenv("GRABIT_ARTIFACTORY_TOKEN")
+		if token == "" {
+			return fmt.Errorf("GRABIT_ARTIFACTORY_TOKEN environment variable is not set")
+		}
+
+		// Add context here
+		ctx := context.Background()
+		path, err := GetUrltoTempFile(paths[0], token, ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get file for cache: %s", err)
+		}
+		defer os.Remove(path)
+
+		// Upload to Artifactory using hash as filename
+		err = uploadToArtifactory(path, cacheURL, r.Integrity)
+		if err != nil {
+			return fmt.Errorf("failed to upload to cache: %v", err)
+		}
+	}
+
 	l.conf.Resource = append(l.conf.Resource, *r)
 	return nil
 }
 
+func uploadToArtifactory(filePath, cacheURL, integrity string) error {
+	token := os.Getenv("GRABIT_ARTIFACTORY_TOKEN")
+	if token == "" {
+		return fmt.Errorf("GRABIT_ARTIFACTORY_TOKEN environment variable is not set")
+	}
+
+	// Use the integrity value directly for the URL
+	artifactoryURL := getArtifactoryURL(cacheURL, integrity)
+
+	// Upload the file using the requests package
+	err := requests.
+		URL(artifactoryURL).
+		Method(http.MethodPut).
+		Header("Authorization", fmt.Sprintf("Bearer %s", token)).
+		BodyFile(filePath). // Using BodyFile instead of ReadFile
+		Fetch(context.Background())
+
+	if err != nil {
+		return fmt.Errorf("upload failed: %w", err)
+	}
+
+	return nil
+}
 func (l *Lock) DeleteResource(path string) {
 	newStatements := []Resource{}
 	for _, r := range l.conf.Resource {
 		if !r.Contains(path) {
 			newStatements = append(newStatements, r)
+		} else if r.Contains(path) && r.CacheUri != "" {
+			token := os.Getenv("GRABIT_ARTIFACTORY_TOKEN")
+			if token == "" {
+				log.Warn().Msg("Warning: Unable to delete from Artifactory: GRABIT_ARTIFACTORY_TOKEN not set.")
+
+				continue
+			}
+
+			artifactoryURL := getArtifactoryURL(r.CacheUri, r.Integrity)
+
+			err := deleteCache(artifactoryURL, token)
+			if err != nil {
+				log.Warn().Msg("Warning: Unable to delete from Artifactory")
+			}
 		}
 	}
 	l.conf.Resource = newStatements
+}
+
+func deleteCache(url, token string) error {
+	// Create and send a DELETE request with an Authorization header.
+	return requests.
+		URL(url).
+		Method(http.MethodDelete).
+		Header("Authorization", fmt.Sprintf("Bearer %s", token)).
+		Fetch(context.Background())
 }
 
 const NoFileMode = os.FileMode(0)
@@ -165,6 +246,47 @@ func (l *Lock) Download(dir string, tags []string, notags []string, perm string,
 	for i, r := range filteredResources {
 		resource := r
 		go func() {
+			// Try Artifactory first if available
+			if resource.CacheUri != "" {
+				token := os.Getenv("GRABIT_ARTIFACTORY_TOKEN")
+				if token != "" {
+					artifactoryURL := getArtifactoryURL(resource.CacheUri, resource.Integrity)
+					filename := resource.Filename
+					if filename == "" {
+						filename = path.Base(resource.Urls[0])
+					}
+					fullPath := filepath.Join(dir, filename)
+
+					// Use getUrl with bearer token
+					tmpPath, err := getUrl(artifactoryURL, fullPath, token, ctx)
+					if err == nil {
+						//  integrity check
+						algo, err := getAlgoFromIntegrity(resource.Integrity)
+						if err != nil {
+							errorCh <- err
+							return
+						}
+						err = checkIntegrityFromFile(tmpPath, algo, resource.Integrity, artifactoryURL)
+						if err != nil {
+							errorCh <- err
+							return
+						}
+						if mode != NoFileMode {
+							err = os.Chmod(tmpPath, mode.Perm())
+						}
+						if err == nil {
+							errorCh <- nil
+							if statusLine != nil {
+								statusLine.Increment(i)
+							}
+							return
+						}
+					}
+					if strings.Contains(err.Error(), "lookup invalid") || strings.Contains(err.Error(), "dial tcp") {
+						fmt.Printf("Failed to download from Artifactory, falling back to original URL: %v\n", err)
+					}
+				}
+			}
 
 			err := resource.Download(dir, mode, ctx)
 			errorCh <- err
