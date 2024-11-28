@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/carlmjohnson/requests"
 	"github.com/dustin/go-humanize"
 	"github.com/rs/zerolog/log"
 )
@@ -98,14 +99,24 @@ func (st *StatusLine) InitResourcesSizes() error {
 	st.totalBytes = 0
 	for i, r := range *st.resources {
 		resource := r
-		httpClient := &http.Client{Timeout: time.Duration(timeoutMs) * time.Millisecond}
-		resp, err := httpClient.Head(resource.Urls[0])
+		headers := http.Header{}
+		err := requests.
+			URL(resource.Urls[0]).
+			Head().
+			CopyHeaders(headers).
+			CheckStatus(http.StatusOK).
+			Fetch(context.Background())
 		if err != nil {
 			log.Debug().Msg("Error fetching resource sizes")
 			return err
 		}
-		st.totalBytes += resp.ContentLength
-		st.resourceSizes[i] = resp.ContentLength
+		ContentLength, err := strconv.Atoi(headers.Get("Content-Length"))
+		if err != nil {
+			log.Debug().Msg("Error fetching resource sizes")
+			return err
+		}
+		st.totalBytes += int64(ContentLength)
+		st.resourceSizes[i] = int64(ContentLength)
 	}
 
 	return nil
