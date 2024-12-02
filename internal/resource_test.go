@@ -1,6 +1,5 @@
 // Copyright (c) 2023 Cisco Systems, Inc. and its affiliates
 // All rights reserved.
-
 package internal
 
 import (
@@ -31,7 +30,7 @@ func TestNewResourceFromUrl(t *testing.T) {
 		{
 			urls:  []string{fmt.Sprintf("http://localhost:%d/test.html", port)},
 			valid: true,
-			res:   Resource{Urls: []string{fmt.Sprintf("http://localhost:%d/test.html", port)}, Integrity: fmt.Sprintf("%s-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE=", algo), Tags: []string{}, Filename: ""},
+			res:   Resource{Urls: []string{fmt.Sprintf("http://localhost:%d/test.html", port)}, Integrity: fmt.Sprintf("%s-vvV+x/U6bUC+tkCngKY5yDvCmsipgW8fxsXG3Nk8RyE=", algo), Tags: []string{}, Filename: "", CacheUri: ""},
 		},
 		{
 			urls:          []string{"invalid url"},
@@ -39,9 +38,8 @@ func TestNewResourceFromUrl(t *testing.T) {
 			errorContains: "failed to download",
 		},
 	}
-
 	for _, data := range tests {
-		resource, err := NewResourceFromUrl(data.urls, algo, []string{}, "")
+		resource, err := NewResourceFromUrl(data.urls, algo, []string{}, "", "")
 		assert.Equal(t, data.valid, err == nil)
 		if err != nil {
 			assert.Contains(t, err.Error(), data.errorContains)

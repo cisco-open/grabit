@@ -33,7 +33,6 @@ func TestNewLockValid(t *testing.T) {
 	assert.Equal(t, "sha256-asdasdasd", statement.Integrity)
 	assert.Equal(t, []string{"tag1", "tag2"}, statement.Tags)
 }
-
 func TestLockManipulations(t *testing.T) {
 	path := test.TmpFile(t, `
 	[[Resource]]
@@ -51,7 +50,7 @@ func TestLockManipulations(t *testing.T) {
 	port, server := test.HttpHandler(handler)
 	defer server.Close()
 	resource := fmt.Sprintf("http://localhost:%d/test2.html", port)
-	err = lock.AddResource([]string{resource}, "sha512", []string{}, "")
+	err = lock.AddResource([]string{resource}, "sha512", []string{}, "", "")
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(lock.conf.Resource))
 	err = lock.Save()
@@ -68,7 +67,7 @@ func TestDuplicateResource(t *testing.T) {
 		Integrity = 'sha256-asdasdasd'`, url))
 	lock, err := NewLock(path, false)
 	assert.Nil(t, err)
-	err = lock.AddResource([]string{url}, "sha512", []string{}, "")
+	err = lock.AddResource([]string{url}, "sha512", []string{}, "", "")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "already present")
 }
@@ -115,7 +114,7 @@ func TestDownload(t *testing.T) {
 	lock, err := NewLock(path, false)
 	assert.Nil(t, err)
 	dir := test.TmpDir(t)
-	err = lock.Download(dir, []string{}, []string{}, perm, false)
+	err = lock.Download(dir, []string{}, []string{}, perm)
 	if err != nil {
 		t.Fatal(err)
 	}

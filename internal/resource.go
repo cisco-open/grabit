@@ -24,9 +24,10 @@ type Resource struct {
 	Integrity string
 	Tags      []string `toml:",omitempty"`
 	Filename  string   `toml:",omitempty"`
+	CacheUri  string   `toml:",omitempty"`
 }
 
-func NewResourceFromUrl(urls []string, algo string, tags []string, filename string) (*Resource, error) {
+func NewResourceFromUrl(urls []string, algo string, tags []string, filename string, cacheURL string) (*Resource, error) {
 	if len(urls) < 1 {
 		return nil, fmt.Errorf("empty url list")
 	}
@@ -41,7 +42,8 @@ func NewResourceFromUrl(urls []string, algo string, tags []string, filename stri
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute ressource integrity: %s", err)
 	}
-	return &Resource{Urls: urls, Integrity: integrity, Tags: tags, Filename: filename}, nil
+
+	return &Resource{Urls: urls, Integrity: integrity, Tags: tags, Filename: filename, CacheUri: cacheURL}, nil
 }
 
 // getUrl downloads the given resource and returns the path to it.
@@ -83,6 +85,24 @@ func GetUrltoTempFile(u string, ctx context.Context) (string, error) {
 }
 
 func (l *Resource) Download(dir string, mode os.FileMode, ctx context.Context) error {
+	// Check if a cache URL exists to use Artifactory first
+	if l.CacheUri != "" {
+		localName := ""
+		if l.Filename != "" {
+			localName = l.Filename
+		} else {
+			localName = path.Base(l.Urls[0])
+		}
+		resPath := filepath.Join(dir, localName)
+
+		// Try cache download first
+		err := downloadFromArtifactory(ctx, l.CacheUri, l.Integrity, resPath, mode)
+		if err == nil {
+			return nil // Cache download successful
+		}
+		// If cache fails, just log warning and continue to regular URLs
+		fmt.Printf("Warning: Failed to download from cache, falling back to original URL: %v\n", err)
+	}
 	ok := false
 	algo, err := getAlgoFromIntegrity(l.Integrity)
 	if err != nil {
@@ -120,10 +140,19 @@ func (l *Resource) Download(dir string, mode os.FileMode, ctx context.Context) e
 			}
 		}
 		ok = true
+		if l.CacheUri != "" && os.Getenv("NO_CACHE_UPLOAD") != "1" {
+			if uploadErr := uploadToArtifactory(resPath, l.CacheUri, l.Integrity); uploadErr != nil {
+				fmt.Printf("Warning: Failed to upload to cache: %v\n", uploadErr)
+			}
+		}
 	}
 	if !ok {
-		if downloadError != nil {
-			return downloadError
+		if err == nil {
+			if downloadError != nil {
+				return downloadError
+			} else {
+				panic("no error but no file downloaded")
+			}
 		}
 		return err
 	}
