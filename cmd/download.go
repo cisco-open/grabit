@@ -15,6 +15,8 @@ func addDownload(cmd *cobra.Command) {
 		Args:  cobra.NoArgs,
 		RunE:  runFetch,
 	}
+	downloadCmd.Flags().BoolP("status", "s", false, "Continuously display bytes/resources downloaded, time elapsed, and progress bar")
+	downloadCmd.Flags().Lookup("status").NoOptDefVal = "true"
 	downloadCmd.Flags().String("dir", ".", "Target directory where to store the files")
 	downloadCmd.Flags().StringArray("tag", []string{}, "Only download the resources with the given tag")
 	downloadCmd.Flags().StringArray("notag", []string{}, "Only download the resources without the given tag")
@@ -47,7 +49,11 @@ func runFetch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	err = lock.Download(dir, tags, notags, perm)
+	status, err := cmd.Flags().GetBool("status")
+	if err != nil {
+		return err
+	}
+	err = lock.Download(dir, tags, notags, perm, status)
 	if err != nil {
 		return err
 	}
