@@ -6,8 +6,6 @@ package internal
 import (
 	"bufio"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -106,10 +104,7 @@ func uploadToArtifactory(filePath, cacheURL, integrity string) error {
 		return fmt.Errorf("failed to read file: %v", err)
 	}
 
-	// Compute the SHA256 hash and generate the Artifactory URL
-	hash := sha256.Sum256(fileContent)
-	hexHash := fmt.Sprintf("sha256-%s", hex.EncodeToString(hash[:]))
-	artifactoryURL := fmt.Sprintf("%s/%s", cacheURL, hexHash)
+	artifactoryURL := fmt.Sprintf("%s/%s", cacheURL, integrity)
 
 	// Upload the file using the requests package
 	err = requests.
