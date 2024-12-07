@@ -4,6 +4,9 @@
 package test
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -13,6 +16,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
+
+func GetSha256Integrity(content string) string {
+	hasher := sha256.New()
+	hasher.Write([]byte(content))
+	return fmt.Sprintf("sha256-%s", base64.StdEncoding.EncodeToString(hasher.Sum(nil)))
+}
 
 func TmpFile(t *testing.T, content string) string {
 	f, err := os.CreateTemp(t.TempDir(), "test")
