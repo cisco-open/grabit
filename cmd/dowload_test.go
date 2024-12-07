@@ -4,10 +4,16 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"github.com/cisco-open/grabit/internal"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/cisco-open/grabit/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func getSha256Integrity(content string) string {
@@ -122,6 +128,56 @@ func TestRunDownloadFailsIntegrityTest(t *testing.T) {
 	err := cmd.Execute()
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "integrity mismatch")
+}
+
+func TestOptimization(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := w.Write([]byte("test content"))
+		if err != nil {
+			return
+		}
+	}))
+	defer ts.Close()
+
+	t.Run("Valid_File_Not_Redownloaded", func(t *testing.T) {
+		tmpDir := test.TmpDir(t)
+		testUrl := ts.URL + "/valid_test.txt"
+
+		lockPath := test.TmpFile(t, "")
+		lock, err := internal.NewLock(lockPath, true)
+		require.NoError(t, err)
+
+		err = lock.AddResource([]string{testUrl}, internal.RecommendedAlgo, nil, "valid_test.txt")
+		require.NoError(t, err)
+
+		// Update the Download call to match the new signature
+		err = lock.Download(tmpDir, nil, nil, "", false) // Added 'false' for the new boolean argument
+		require.NoError(t, err)
+	})
+
+	t.Run("Invalid_File_Redownloaded", func(t *testing.T) {
+		tmpDir := test.TmpDir(t)
+		testUrl := ts.URL + "/invalid_test.txt"
+
+		lockPath := test.TmpFile(t, "")
+		lock, err := internal.NewLock(lockPath, true)
+		require.NoError(t, err)
+
+		err = lock.AddResource([]string{testUrl}, internal.RecommendedAlgo, nil, "invalid_test.txt")
+		require.NoError(t, err)
+
+		err = lock.Save()
+		require.NoError(t, err)
+
+		invalidPath := filepath.Join(tmpDir, "invalid_test.txt")
+		err = os.WriteFile(invalidPath, []byte("corrupted"), 0644)
+		require.NoError(t, err)
+
+		// Update the Download call to match the new signature
+		err = lock.Download(tmpDir, nil, nil, "", false) // Added 'false' for the new boolean argument
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "integrity mismatch")
+	})
 }
 
 func TestRunDownloadTriesAllUrls(t *testing.T) {
