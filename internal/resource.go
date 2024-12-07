@@ -88,12 +88,9 @@ func (l *Resource) Download(dir string, mode os.FileMode, ctx context.Context) e
 	if err != nil {
 		return err
 	}
+
 	var downloadError error = nil
 	for _, u := range l.Urls {
-		// Download file in the target directory so that the call to
-		// os.Rename is atomic.
-		log.Debug().Str("URL", u).Msg("Downloading")
-
 		localName := ""
 		if l.Filename != "" {
 			localName = l.Filename
@@ -102,60 +99,59 @@ func (l *Resource) Download(dir string, mode os.FileMode, ctx context.Context) e
 		}
 		resPath := filepath.Join(dir, localName)
 
-		// Check existing file first
-		if _, err := os.Stat(resPath); err == nil {
-			// File exists, validate its integrity
-			if !ValidateLocalFile(resPath, l.Integrity) {
-				return fmt.Errorf("integrity mismatch for '%s'", resPath)
+		// Check if the destination file already exists and has the correct integrity.
+		_, err := os.Stat(resPath)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("error checking destination file presence '%s': '%v'", resPath, err)
 			}
-			// Set file permissions if needed
+		} else {
+			err = checkIntegrityFromFile(resPath, algo, l.Integrity, u)
+			if err != nil {
+				return fmt.Errorf("existing file at '%s' with incorrect integrity: '%v'", resPath, err)
+			}
 			if mode != NoFileMode {
-				if err := os.Chmod(resPath, mode.Perm()); err != nil {
+				err = os.Chmod(resPath, mode.Perm())
+				if err != nil {
 					return err
 				}
 			}
-			ok = true
-			continue
-		} else if !os.IsNotExist(err) {
-			// Handle other potential errors from os.Stat
-			return fmt.Errorf("failed to stat file '%s': %v", resPath, err)
+			return nil
 		}
 
-		// Download new file
+		// Download file in the target directory so that the call to
+		// os.Rename is atomic.
 		lpath, err := GetUrlToDir(u, dir, ctx)
 		if err != nil {
-			downloadError = fmt.Errorf("failed to download '%s': %v", u, err)
-			continue
-		}
-
-		// Validate downloaded file
-		if err := checkIntegrityFromFile(lpath, algo, l.Integrity, u); err != nil {
-			os.Remove(lpath)
 			downloadError = err
 			continue
 		}
-
-		// Move to final location
-		if err := os.Rename(lpath, resPath); err != nil {
-			os.Remove(lpath)
-			downloadError = err
-			continue
+		err = checkIntegrityFromFile(lpath, algo, l.Integrity, u)
+		if err != nil {
+			return err
 		}
-
+		err = os.Rename(lpath, resPath)
+		if err != nil {
+			return err
+		}
 		if mode != NoFileMode {
-			if err := os.Chmod(resPath, mode.Perm()); err != nil {
+			err = os.Chmod(resPath, mode.Perm())
+			if err != nil {
 				return err
 			}
 		}
 		ok = true
 		break
 	}
-
 	if !ok {
-		return downloadError
+		if downloadError != nil {
+			return downloadError
+		}
+		return err
 	}
 	return nil
 }
+
 func (l *Resource) Contains(url string) bool {
 	for _, u := range l.Urls {
 		if u == url {
@@ -163,22 +159,4 @@ func (l *Resource) Contains(url string) bool {
 		}
 	}
 	return false
-}
-
-func ValidateLocalFile(filePath string, expectedIntegrity string) bool {
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return false
-	}
-
-	algo, err := getAlgoFromIntegrity(expectedIntegrity)
-	if err != nil {
-		return false
-	}
-
-	fileIntegrity, err := getIntegrityFromFile(filePath, algo)
-	if err != nil {
-		return false
-	}
-
-	return fileIntegrity == expectedIntegrity
 }
