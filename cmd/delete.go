@@ -28,7 +28,10 @@ func runDel(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	for _, r := range args {
-		lock.DeleteResource(r)
+		err = lock.DeleteResource(r)
+		if err != nil {
+			return err
+		}
 	}
 	err = lock.Save()
 	if err != nil {
