@@ -2,49 +2,27 @@ package cmd
 
 import (
 	"fmt"
-	"net/http"
 	"testing"
 
+	"github.com/cisco-open/grabit/internal"
 	"github.com/cisco-open/grabit/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRunAdd(t *testing.T) {
-	// Set the GRABIT_ARTIFACTORY_TOKEN environment variable.
-	t.Setenv("GRABIT_ARTIFACTORY_TOKEN", "test-token")
-
-	// Setup HTTP handler for the resource
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		_, err := w.Write([]byte(`abcdef`))
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	port, server := test.HttpHandler(handler)
-	defer server.Close()
-
-	// Setup dummy cache server
-	cacheHandler := func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "PUT" {
-			w.WriteHeader(http.StatusCreated)
-		}
-	}
-	cachePort, cacheServer := test.HttpHandler(cacheHandler)
-	defer cacheServer.Close()
-
-	// Create empty lockfile
-	lockFile := test.TmpFile(t, "")
-
+	port := test.TestHttpHandler("abcdef", t)
 	cmd := NewRootCmd()
-	// Add cache URL to the command
-	cacheURL := fmt.Sprintf("http://localhost:%d", cachePort)
-	cmd.SetArgs([]string{
-		"-f", lockFile,
-		"add",
-		fmt.Sprintf("http://localhost:%d/test.html", port),
-		"--cache", cacheURL,
-	})
+	cmd.SetArgs([]string{"-f", test.TmpFile(t, ""), "add", fmt.Sprintf("http://localhost:%d/test.html", port)})
+	err := cmd.Execute()
+	assert.Nil(t, err)
+}
 
+func TestRunAddWithArtifactoryCache(t *testing.T) {
+	t.Setenv(internal.GRABIT_ARTIFACTORY_TOKEN_ENV_VAR, "artifactory-token")
+	port := test.TestHttpHandler("abcdef", t)
+	artPort := test.TestHttpHandler("abcdef", t)
+	cmd := NewRootCmd()
+	cmd.SetArgs([]string{"-f", test.TmpFile(t, ""), "add", fmt.Sprintf("http://localhost:%d/test.html", port), "--artifactory-cache-url", fmt.Sprintf("http://localhost:%d/artifactory", artPort)})
 	err := cmd.Execute()
 	assert.Nil(t, err)
 }

@@ -56,7 +56,8 @@ func TestLockManipulations(t *testing.T) {
 	assert.Equal(t, 2, len(lock.conf.Resource))
 	err = lock.Save()
 	assert.Nil(t, err)
-	lock.DeleteResource(resource)
+	err = lock.DeleteResource(resource)
+	assert.Nil(t, err)
 	assert.Equal(t, 1, len(lock.conf.Resource))
 }
 
