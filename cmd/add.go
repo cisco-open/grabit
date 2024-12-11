@@ -4,6 +4,9 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/cisco-open/grabit/internal"
 	"github.com/spf13/cobra"
 )
@@ -18,6 +21,7 @@ func addAdd(cmd *cobra.Command) {
 	addCmd.Flags().String("algo", internal.RecommendedAlgo, "Integrity algorithm")
 	addCmd.Flags().String("filename", "", "Target file name to use when downloading the resource")
 	addCmd.Flags().StringArray("tag", []string{}, "Resource tags")
+	addCmd.Flags().String("artifactory-cache-url", "", "Artifactory cache URL")
 	cmd.AddCommand(addCmd)
 }
 
@@ -25,6 +29,17 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	lockFile, err := cmd.Flags().GetString("lock-file")
 	if err != nil {
 		return err
+	}
+	// Get cache URL
+	ArtifactoryCacheURL, err := cmd.Flags().GetString("artifactory-cache-url")
+	if err != nil {
+		return err
+	}
+	if ArtifactoryCacheURL != "" {
+		token := os.Getenv(internal.GRABIT_ARTIFACTORY_TOKEN_ENV_VAR)
+		if token == "" {
+			return fmt.Errorf("%s environment variable is not set", internal.GRABIT_ARTIFACTORY_TOKEN_ENV_VAR)
+		}
 	}
 	lock, err := internal.NewLock(lockFile, true)
 	if err != nil {
@@ -42,7 +57,7 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	err = lock.AddResource(args, algo, tags, filename)
+	err = lock.AddResource(args, algo, tags, filename, ArtifactoryCacheURL)
 	if err != nil {
 		return err
 	}

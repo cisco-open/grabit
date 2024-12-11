@@ -49,28 +49,36 @@ func NewLock(path string, newOk bool) (*Lock, error) {
 	return &Lock{path: path, conf: conf}, nil
 }
 
-func (l *Lock) AddResource(paths []string, algo string, tags []string, filename string) error {
+func (l *Lock) AddResource(paths []string, algo string, tags []string, filename string, cacheURL string) error {
 	for _, u := range paths {
 		if l.Contains(u) {
 			return fmt.Errorf("resource '%s' is already present", u)
 		}
 	}
-	r, err := NewResourceFromUrl(paths, algo, tags, filename)
+	r, err := NewResourceFromUrl(paths, algo, tags, filename, cacheURL)
+
 	if err != nil {
 		return err
 	}
+
 	l.conf.Resource = append(l.conf.Resource, *r)
 	return nil
 }
 
-func (l *Lock) DeleteResource(path string) {
+func (l *Lock) DeleteResource(path string) error {
 	newStatements := []Resource{}
 	for _, r := range l.conf.Resource {
 		if !r.Contains(path) {
 			newStatements = append(newStatements, r)
+		} else {
+			err := r.Delete()
+			if err != nil {
+				return fmt.Errorf("Failed to delete resource '%s': %w", path, err)
+			}
 		}
 	}
 	l.conf.Resource = newStatements
+	return nil
 }
 
 const NoFileMode = os.FileMode(0)

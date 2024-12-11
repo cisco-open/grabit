@@ -51,12 +51,13 @@ func TestLockManipulations(t *testing.T) {
 	port, server := test.HttpHandler(handler)
 	defer server.Close()
 	resource := fmt.Sprintf("http://localhost:%d/test2.html", port)
-	err = lock.AddResource([]string{resource}, "sha512", []string{}, "")
+	err = lock.AddResource([]string{resource}, "sha512", []string{}, "", "")
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(lock.conf.Resource))
 	err = lock.Save()
 	assert.Nil(t, err)
-	lock.DeleteResource(resource)
+	err = lock.DeleteResource(resource)
+	assert.Nil(t, err)
 	assert.Equal(t, 1, len(lock.conf.Resource))
 }
 
@@ -68,7 +69,7 @@ func TestDuplicateResource(t *testing.T) {
 		Integrity = 'sha256-asdasdasd'`, url))
 	lock, err := NewLock(path, false)
 	assert.Nil(t, err)
-	err = lock.AddResource([]string{url}, "sha512", []string{}, "")
+	err = lock.AddResource([]string{url}, "sha512", []string{}, "", "")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "already present")
 }

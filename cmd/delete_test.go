@@ -15,6 +15,7 @@ func TestRunDelete(t *testing.T) {
 	Tags = ['tag1', 'tag2']
 `)
 	cmd := NewRootCmd()
+	cmd.Flags().String("cache", "", "Artifactory URL for caching")
 	cmd.SetArgs([]string{"-f", testfilepath, "delete", "http://localhost:123456/test.html"})
 	err := cmd.Execute()
 	assert.Nil(t, err)
