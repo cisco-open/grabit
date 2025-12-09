@@ -14,8 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-all: build 
-.PHONY: dep fmt build test lint
+all: build
+.PHONY: dep fmt build test lint pre-commit-install pre-commit-run
 
 dep:
 	@go mod tidy
@@ -39,3 +39,9 @@ test-gst: dep
 
 check: dep
 	@golangci-lint run --sort-results ./...
+
+pre-commit-install:
+	@pre-commit install
+
+pre-commit-run:
+	@pre-commit run --all-files
