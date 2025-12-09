@@ -30,6 +30,13 @@ type Resource struct {
 
 const GRABIT_ARTIFACTORY_TOKEN_ENV_VAR = "GRABIT_ARTIFACTORY_TOKEN"
 
+// noCompressionTransport is an http.Transport that doesn't automatically
+// request or decompress gzip responses. This is critical for integrity
+// checking: we need the raw bytes as served, not transparently decompressed.
+var noCompressionTransport = &http.Transport{
+	DisableCompression: true,
+}
+
 func getArtifactoryToken() string {
 	return os.Getenv(GRABIT_ARTIFACTORY_TOKEN_ENV_VAR)
 }
@@ -47,7 +54,7 @@ func NewResourceFromUrl(urls []string, algo string, tags []string, filename stri
 	defer os.Remove(path)
 	integrity, err := getIntegrityFromFile(path, algo)
 	if err != nil {
-		return nil, fmt.Errorf("failed to compute ressource integrity: %s", err)
+		return nil, fmt.Errorf("failed to compute resource integrity: %s", err)
 	}
 	resource := &Resource{Urls: urls, Integrity: integrity, Tags: tags, Filename: filename, ArtifactoryCacheURL: ArtifactoryCacheURL}
 	// If cache URL is provided, upload file to Artifactory.
@@ -76,6 +83,7 @@ func (l *Resource) AddToCache(filePath string) error {
 
 	err := requests.
 		URL(l.getCacheFullURL()).
+		Transport(noCompressionTransport).
 		Method(http.MethodPut).
 		Header("Authorization", fmt.Sprintf("Bearer %s", token)).
 		BodyFile(filePath).
@@ -95,6 +103,7 @@ func (l *Resource) Delete() error {
 	url := l.getCacheFullURL()
 	err := requests.
 		URL(url).
+		Transport(noCompressionTransport).
 		Method(http.MethodDelete).
 		Header("Authorization", fmt.Sprintf("Bearer %s", token)).
 		Fetch(context.Background())
@@ -112,6 +121,7 @@ func getUrl(u string, fileName string, bearer string, ctx context.Context) (stri
 
 	req := requests.
 		URL(u).
+		Transport(noCompressionTransport).
 		Header("Accept", "*/*").
 		ToFile(fileName)
 
@@ -136,7 +146,7 @@ func GetUrlToDir(u string, targetDir string, bearer string, ctx context.Context)
 	return getUrl(u, fileName, bearer, ctx)
 }
 
-// GetUrlWithDir downloads the given resource to a temporary file and returns the path to it.
+// GetUrltoTempFile downloads the given resource to a temporary file and returns the path to it.
 func GetUrltoTempFile(u string, bearer string, ctx context.Context) (string, error) {
 	file, err := os.CreateTemp("", "prefix")
 	if err != nil {
