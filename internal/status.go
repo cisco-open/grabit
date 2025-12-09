@@ -102,6 +102,7 @@ func (st *StatusLine) InitResourcesSizes() error {
 		headers := http.Header{}
 		err := requests.
 			URL(resource.Urls[0]).
+			Transport(noCompressionTransport).
 			Head().
 			CopyHeaders(headers).
 			CheckStatus(http.StatusOK).
