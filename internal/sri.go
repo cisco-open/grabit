@@ -49,7 +49,7 @@ func getIntegrityFromFile(path string, algo string) (string, error) {
 func checkIntegrityFromFile(path string, algo string, integrity string, u string) error {
 	computedIntegrity, err := getIntegrityFromFile(path, algo)
 	if err != nil {
-		return fmt.Errorf("failed to compute ressource integrity: %s", err)
+		return fmt.Errorf("failed to compute resource integrity: %s", err)
 	}
 	if computedIntegrity != integrity {
 		return fmt.Errorf("integrity mismatch for '%s': got '%s' expected '%s'", u, computedIntegrity, integrity)

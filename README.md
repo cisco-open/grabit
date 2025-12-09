@@ -54,6 +54,6 @@ $ grabit download --dir .
 
 ## Support
 
-We are continuously improving the tool and adding more feature.
+We are continuously improving the tool and adding more features.
 Please see the [open issues](https://github.com/cisco-open/grabit/issues) to see the list of planned
 items and feel free to open a new issue in case something that you'd like to see is missing.
