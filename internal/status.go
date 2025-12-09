@@ -67,6 +67,7 @@ func (st *StatusLine) Start(doTick bool) {
 			select {
 			case <-st.ctx.Done():
 				st.Stop()
+				fmt.Println()
 				return
 			case <-time.After(tickMs * time.Millisecond):
 				if !doTick {
