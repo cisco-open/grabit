@@ -33,8 +33,11 @@ const GRABIT_ARTIFACTORY_TOKEN_ENV_VAR = "GRABIT_ARTIFACTORY_TOKEN"
 // noCompressionTransport is an http.Transport that doesn't automatically
 // request or decompress gzip responses. This is critical for integrity
 // checking: we need the raw bytes as served, not transparently decompressed.
+// Proxy is set to ProxyFromEnvironment so that grabit respects the standard
+// HTTP_PROXY, HTTPS_PROXY, and NO_PROXY environment variables.
 var noCompressionTransport = &http.Transport{
 	DisableCompression: true,
+	Proxy:              http.ProxyFromEnvironment,
 }
 
 func getArtifactoryToken() string {
