@@ -19,7 +19,7 @@ permissions: read-all
 jobs:
   run-scorecard:
     # Call reusable workflow file
-    uses: cisco-ospo/.github/.github/workflows/_scorecard.yml@main
+    uses: cisco-ospo/.github/.github/workflows/_scorecard.yml@6751c0b7d06850a1e9e02b44ac2749a8f0786131 # main
     permissions:
       id-token: write
       security-events: write
